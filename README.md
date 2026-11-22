@@ -57,6 +57,14 @@ The instance must play Horizon `2b77287` (Nightly 2026-11-22), the build
 pinned in `horizon-mod.toml`'s `[native]` table. Start the instance and open
 your inventory.
 
+## Releases
+
+Releases of 0.1–0.3 were signed with minisign. The public key is
+[`horizon-jei.pub`](horizon-jei.pub) (key id `FC3386F1F51ECF6A`). The private key
+is not in the repository. The release flow for the SDK port (a source `.hmod`
+with `[native]`) has not been written up yet; see
+[`docs/publish.md`](docs/publish.md).
+
 ## Develop
 
 You need the launcher's own Rust toolchain (1.99.1:

@@ -166,3 +166,31 @@ Item 5 is mostly available: recipe screen drawn by us, "+" (`recipe_book_ids` + 
 Every public API method the MVP needs also reports `wasm = true` in `surface.json`, so the same code could
 ship as a WebAssembly `.hmod`. That's how zoom, keystrokes, coords-hud, fps-overlay and the Recipes port
 (horizon-mods#1582) were done.
+
+## What the port found (step 2, 0.4.0)
+
+Built and checked in game on launcher 0.2.102 / Horizon `2b77287` (instance "JEI Testing").
+
+### Gaps beyond the ones above
+
+- **Stack subtypes.** `Stack.components` and `ItemStack` components come as the game's JSON form, while
+  `runtime`'s subtypes and the bookmarks file use the `[k=v]` command form. The port lists and bookmarks
+  item ids only. Potions and tipped arrows are not separate entries yet.
+- **Brewing.** No recipe type or SDK call lists potion mixes, so the brewing tab is empty.
+- **Creative screen.** The game shows no mod panel on the creative inventory. The list appears on the
+  survival inventory and on container and station screens.
+- **"+" and the recipe book.** `recipe_book_ids` answers only for recipes the player has unlocked. The
+  port resolves the book id when "+" is pressed and says so in chat when the recipe is locked.
+- **Docked view.** `panel_recipes` is still missing (horizon-rust/horizon#19392). `Config.docked` is
+  parsed but ignored, and JEI's own recipe screen always shows the pages.
+
+### Packaging rules `native-build` enforces
+
+- Rust files only under `src/`: `unexpected package path: tests/daily_use.rs` (also `mixins/…`). The
+  tests moved to `src/tests/`.
+- The SDK's crates keep their identity. A registry `serde_json` is a different crate from
+  `mod_api::serde_json`, and the build fails with type mismatches. Use the SDK's re-export.
+- `Cargo.lock` must keep the game's pins (`game or pinned package proc-macro2 moved…`).
+  `horizon-launcher native-lock` resolves the newest versions, so it is wrong for a mod with no
+  registry dependencies of its own. Seed the lock from `.horizon/sdk/api/Cargo.lock` instead.
+- The manifest `id` must match `[a-z0-9_]{1,64}`, so the planned `jei-new` became `jei_new`.
