@@ -22,7 +22,7 @@ pub use settings::{COMMANDS, settings};
 
 use mod_api::{
     ClientHost, ClientTickPostEvent, CommandEvent, Flow, GuiRenderPostEvent, Hooks,
-    KeyRegistration, PanelEventEvent, RecipesReceivedEvent, RegisterClientCommandsEvent, Registrar,
+    ItemTooltipEvent, KeyRegistration, PanelEventEvent, RecipesReceivedEvent, RegisterClientCommandsEvent, Registrar,
     RegistrationContext, ScreenClosingEvent, ScreenKeyPressedPreEvent,
     ScreenMouseButtonPressedPreEvent, ScreenMouseButtonReleasedPreEvent,
     ScreenMouseDraggedPreEvent, ScreenMouseScrolledPreEvent, ScreenRenderPostEvent,
@@ -45,7 +45,20 @@ struct Jei;
 
 #[mod_api::horizon_mod]
 impl Hooks for Jei {
-    fn register(&self, r: &mut dyn Registrar, _: &RegistrationContext) {
+    fn register(&self, r: &mut dyn Registrar, context: &RegistrationContext) {
+        // The installed mods' names, for the list's mod order and the tooltips' mod line.
+        let mut names = std::collections::HashMap::new();
+        for package in context.mods().iter() {
+            if package.name().trim().is_empty() {
+                continue;
+            }
+            for namespace in package.namespaces() {
+                names
+                    .entry(namespace.to_owned())
+                    .or_insert_with(|| package.name().to_owned());
+            }
+        }
+        native_route::set_mod_names(names);
         for setting in settings() {
             // Only a malformed spec is refused, and the tests check every spec.
             let _ = r.register_setting(setting);
@@ -69,6 +82,11 @@ impl Hooks for Jei {
         if event.mod_id == ID {
             glue::panel_event(host, event.event);
         }
+    }
+
+    /// Every item tooltip ends with the mod the item comes from, in blue, as JEI's do.
+    fn item_tooltip(&self, host: &dyn ClientHost, event: &mut ItemTooltipEvent<'_>) {
+        glue::item_tooltip(host, event.stack, event.lines);
     }
 
     fn screen_render_post(&self, host: &dyn ClientHost, event: &mut ScreenRenderPostEvent<'_>) {

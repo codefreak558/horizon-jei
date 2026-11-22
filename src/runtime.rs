@@ -914,8 +914,11 @@ pub struct Context<'a> {
 /// How the item list is ordered.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Sort {
-    /// By name, then id, then variant.
+    /// JEI's default: Minecraft first, then each mod by its name, each in
+    /// the game's own order with its variants after it.
     #[default]
+    Mod,
+    /// By name, then id, then variant.
     Name,
     /// By id, then variant.
     Id,
@@ -924,6 +927,7 @@ pub enum Sort {
 impl Sort {
     pub fn code(self) -> &'static str {
         match self {
+            Sort::Mod => "mod",
             Sort::Name => "name",
             Sort::Id => "id",
         }
@@ -931,6 +935,7 @@ impl Sort {
 
     pub fn from_code(text: &str) -> Option<Sort> {
         match text.trim().to_lowercase().as_str() {
+            "mod" | "mods" => Some(Sort::Mod),
             "name" | "nombre" => Some(Sort::Name),
             "id" => Some(Sort::Id),
             _ => None,
@@ -939,13 +944,15 @@ impl Sort {
 
     pub fn next(self) -> Sort {
         match self {
+            Sort::Mod => Sort::Name,
             Sort::Name => Sort::Id,
-            Sort::Id => Sort::Name,
+            Sort::Id => Sort::Mod,
         }
     }
 
     pub fn label(self, lang: Lang) -> &'static str {
         match (self, lang) {
+            (Sort::Mod, _) => "Mod",
             (Sort::Name, Lang::En) => "Name",
             (Sort::Name, Lang::Es) => "Nombre",
             (Sort::Id, _) => "ID",
@@ -969,7 +976,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            sort: Sort::Name,
+            sort: Sort::Mod,
             hints: true,
             bookmarks: true,
             docked: false,
@@ -1205,6 +1212,36 @@ pub struct Counts {
 pub const HINT_COLOR: [u8; 4] = [170, 170, 170, 255];
 pub const MARK_COLOR: [u8; 4] = [255, 255, 85, 255];
 pub const NAME_COLOR: [u8; 4] = [255, 255, 255, 255];
+/// JEI's mod name line: `§9`, blue.
+pub const MOD_COLOR: [u8; 4] = [85, 85, 255, 255];
+
+/// An item id's namespace: `minecraft` when it has none.
+pub fn namespace(id: &str) -> &str {
+    id.split_once(':').map_or("minecraft", |(ns, _)| ns)
+}
+
+/// The name of the mod an item id comes from: the installed mod's own name
+/// when `names` has its namespace, else the namespace made readable
+/// (`create_addon` → "Create Addon").
+pub fn mod_name(id: &str, names: &std::collections::HashMap<String, String>) -> String {
+    let ns = namespace(id);
+    if let Some(name) = names.get(ns).filter(|n| !n.trim().is_empty()) {
+        return name.clone();
+    }
+    if ns == "minecraft" {
+        return "Minecraft".to_owned();
+    }
+    (ns.split(['_', '-', '.']))
+        .filter(|w| !w.is_empty())
+        .map(|w| {
+            let mut chars = w.chars();
+            chars.next().map_or_else(String::new, |c| {
+                c.to_uppercase().chain(chars).collect::<String>()
+            })
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 
 pub fn tooltip_lines(counts: Counts, bookmarked: bool, lang: Lang) -> Vec<(String, [u8; 4])> {
     let mut lines = Vec::new();
@@ -1375,6 +1412,8 @@ pub struct Viewer {
     counts: std::collections::HashMap<(u32, String), Counts>,
     lang: Lang,
     sort: Sort,
+    /// The installed mods' names, by namespace, for the mod order and line.
+    mod_names: std::collections::HashMap<String, String>,
     /// The panel's rows now, after the search and the sort.
     listed: Vec<Entry>,
     search: String,
@@ -1548,7 +1587,8 @@ impl Viewer {
             variants: variants_by_item,
             counts,
             lang,
-            sort: Sort::Name,
+            sort: Sort::Mod,
+            mod_names: std::collections::HashMap::new(),
             listed: Vec::new(),
             search: String::new(),
             history: Vec::new(),
@@ -1576,6 +1616,18 @@ impl Viewer {
     /// The order of the list now.
     pub fn sort(&self) -> Sort {
         self.sort
+    }
+
+    /// The installed mods' names by namespace: the output lists the items
+    /// again, as the mod order may change.
+    pub fn set_mod_names(&mut self, names: std::collections::HashMap<String, String>) -> Out {
+        self.mod_names = names;
+        self.list()
+    }
+
+    /// The name of the mod an item id comes from, as its tooltip shows it.
+    pub fn mod_name(&self, id: &str) -> String {
+        mod_name(id, &self.mod_names)
     }
 
     /// Another order: the output lists the items again.
@@ -1694,6 +1746,16 @@ impl Viewer {
             return components.to_owned();
         };
         match self.sort {
+            // Rank and mod only: the stable sort keeps the game's order, and
+            // each item's variants right after it, within a mod.
+            Sort::Mod => {
+                let ns = namespace(&item.id);
+                let rank = u8::from(ns != "minecraft");
+                format!(
+                    "{rank}\u{0}{}\u{0}{ns}",
+                    mod_name(&item.id, &self.mod_names).to_lowercase()
+                )
+            }
             Sort::Name => format!(
                 "{}\u{0}{}\u{0}{components}",
                 item.name.to_lowercase(),
@@ -3477,7 +3539,7 @@ mod tests {
     #[test]
     fn config_is_read_and_written() {
         let default = super::Config::default();
-        assert_eq!(default.sort, super::Sort::Name);
+        assert_eq!(default.sort, super::Sort::Mod);
         assert!(default.hints && default.bookmarks);
         let back = super::Config::parse(&default.to_text());
         assert_eq!(back, default);
@@ -3487,7 +3549,10 @@ mod tests {
         // Unknown keys and values keep what was there.
         let back = super::Config::parse("sort=nope\nsize=3\n");
         assert_eq!(back, default);
+        assert_eq!(super::Sort::Mod.next(), super::Sort::Name);
         assert_eq!(super::Sort::Name.next(), super::Sort::Id);
+        assert_eq!(super::Sort::Id.next(), super::Sort::Mod);
+        assert_eq!(super::Sort::from_code("mod"), Some(super::Sort::Mod));
         assert_eq!(super::Sort::Name.label(super::Lang::Es), "Nombre");
     }
 
@@ -3575,6 +3640,15 @@ mod tests {
         assert_eq!(variants.len(), 2);
         let (mut viewer, out) =
             super::Viewer::with_variants(items, recipes.clone(), variants, super::Lang::En);
+        // By mod (the default): the game's order, each variant after its item.
+        let super::Out::Items(list) = &out else {
+            panic!("not a list: {out:?}");
+        };
+        assert_eq!(list.len(), 4);
+        assert_eq!(list[0].item, "minecraft:stone");
+        assert_eq!(list[1].item, "minecraft:potion");
+        assert_eq!(list[2].components, "[potion=\"minecraft:strength\"]");
+        let out = viewer.set_sort(super::Sort::Name);
         let super::Out::Items(list) = &out else {
             panic!("not a list: {out:?}");
         };
@@ -3630,7 +3704,49 @@ mod tests {
             "Block of Diamond"
         );
         assert_eq!(viewer.item_name("minecraft:nope"), "minecraft:nope");
-        assert_eq!(viewer.sort(), super::Sort::Name);
+        assert_eq!(viewer.sort(), super::Sort::Mod);
+    }
+
+    #[test]
+    fn the_mod_order_puts_minecraft_first_then_mods_by_name() {
+        let item = |id: &str, name: &str| super::Item {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            tags: Vec::new(),
+        };
+        let items = vec![
+            item("zeta:a", "Zed"),
+            item("minecraft:stone", "Stone"),
+            item("alpha_tools:b", "Bee"),
+            item("zeta:c", "Aardvark"),
+            item("minecraft:dirt", "Dirt"),
+            item("alpha_tools:a", "Ant"),
+        ];
+        let (mut viewer, out) = super::Viewer::new(items, Vec::new(), super::Lang::En);
+        let ids = |out: &super::Out| match out {
+            super::Out::Items(list) => list.iter().map(|s| s.item.clone()).collect::<Vec<_>>(),
+            other => panic!("not a list: {other:?}"),
+        };
+        // Minecraft first, then Alpha Tools, then Zeta; the game's order inside each.
+        assert_eq!(
+            ids(&out),
+            [
+                "minecraft:stone",
+                "minecraft:dirt",
+                "alpha_tools:b",
+                "alpha_tools:a",
+                "zeta:a",
+                "zeta:c"
+            ]
+        );
+        // An installed mod's own name decides its place, and its line.
+        let names = [("zeta".to_owned(), "A Zeta Mod".to_owned())].into();
+        let out = viewer.set_mod_names(names);
+        assert_eq!(ids(&out)[2], "zeta:a");
+        assert_eq!(viewer.mod_name("zeta:a"), "A Zeta Mod");
+        assert_eq!(viewer.mod_name("alpha_tools:a"), "Alpha Tools");
+        assert_eq!(viewer.mod_name("minecraft:stone"), "Minecraft");
+        assert_eq!(super::namespace("stone"), "minecraft");
     }
 
     #[test]

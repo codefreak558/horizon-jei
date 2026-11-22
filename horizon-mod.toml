@@ -43,6 +43,18 @@ bindings = [
   { name = "count", ty = "u32", value = "count" },
 ]
 
+# The wheel over the item list turns its pages, as JEI's list does: the game pages the panel but reads no wheel
+# there. JEI's scroll hook claims the wheel over the list and leaves the steps; the list's draw turns the page.
+[[native.mixin]]
+id = "panel_scroll"
+target = "horizon_client::game::native_panel::Game<'_>::draw_browser_items"
+kind = "HEAD"
+helper = "src/mixins/panel_scroll.rs"
+bindings = [
+  { name = "game", ty = "&mut Game<'_>", value = "&mut *self" },
+  { name = "layout", ty = "&Layout", value = "layout" },
+]
+
 # JEI's recipe screen replaces the open screen: while it is open, the container screen (inventory, stations,
 # merchant, beacon via draw_inventory; creative via draw_creative) draws only its background and the item list.
 [[native.mixin]]
