@@ -6,6 +6,9 @@ fn recipe_screen(game: &mut Game<'_>, batch: &mut HudBatch) -> ::core::ops::Cont
         return ::core::ops::ControlFlow::Continue(());
     }
     game.render_transparent_background("inventory", batch);
+    // JEI's recipe screen dims the world behind it, under the item list, as a screen over the world does.
+    let size = [batch.width, batch.height];
+    game.native_fill(batch, [0.0, 0.0, size[0], size[1]], 0xC010_1010);
     if let Some(tooltip) = game.draw_mod_browser(batch) {
         game.draw_mod_browser_tooltip(batch, tooltip);
     }
