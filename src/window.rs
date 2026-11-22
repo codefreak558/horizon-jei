@@ -21,6 +21,26 @@ pub(crate) struct Overlay {
     pub(crate) own_screen: bool,
     /// The notes have been wrapped to the window's width (the first draw does it: it can measure text).
     pub(crate) wrapped: bool,
+    /// The size the player wants the window (JEI's `recipeGuiWidth` and `recipeGuiHeight`).
+    pub(crate) size: [f32; 2],
+    /// The recipes scroll, `scroll` pixels down, instead of turning pages.
+    pub(crate) scrolling: bool,
+    pub(crate) scroll: f32,
+    /// What the pointer holds: an edge of the window or the scrollbar's marker.
+    pub(crate) drag: Option<Drag>,
+}
+
+/// A press held down on the window.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Drag {
+    /// An edge (left, right, top, bottom), where the pointer took it and the window's size then.
+    Resize {
+        edge: [bool; 4],
+        start: [f32; 2],
+        size: [f32; 2],
+    },
+    /// The scrollbar's marker, held `grab` pixels from its top.
+    Bar { grab: f32 },
 }
 
 const PANEL_BG: u32 = 0xFF_C6_C6_C6;
@@ -38,7 +58,101 @@ const SPRITES: &str = "jei:gui/sprites/";
 
 /// The recipe screen's parts now, from the GUI's size.
 fn geom(o: &Overlay, gui: [f32; 2]) -> geo::Geom {
-    geo::geom(gui, o.tabs.len(), o.tab, o.catalysts.len())
+    geo::geom(
+        gui,
+        o.tabs.len(),
+        o.tab,
+        o.catalysts.len(),
+        o.size,
+        o.scrolling,
+    )
+}
+
+/// How far the list scrolls now (0 when it pages, or fits).
+pub(crate) fn max_scroll(o: &Overlay, gui: [f32; 2]) -> f32 {
+    if o.scrolling {
+        geo::max_scroll(&o.views, geom(o, gui).content)
+    } else {
+        0.0
+    }
+}
+
+/// The recipes' movement: the pages, or the list at its offset (kept within what scrolls).
+fn nav_of(o: &Overlay, g: &geo::Geom) -> geo::Nav {
+    let max = if o.scrolling {
+        geo::max_scroll(&o.views, g.content)
+    } else {
+        0.0
+    };
+    geo::Nav {
+        scrolling: o.scrolling,
+        offset: o.scroll.clamp(0.0, max),
+    }
+}
+
+/// The scrollbar's marker share: the list's offset from 0 to 1.
+fn bar_offset(o: &Overlay, max: f32) -> f32 {
+    if max > 0.0 {
+        (o.scroll / max).clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
+/// A press on the scrollbar at `y`: the list jumps there when the marker was missed, and the marker is held.
+pub(crate) fn bar_press(o: &mut Overlay, gui: [f32; 2], y: f32) {
+    let g = geom(o, gui);
+    let max = max_scroll(o, gui);
+    let (offset, grab) = geo::bar_press(g.scrollbar, g.viewport[3], max, bar_offset(o, max), y);
+    o.scroll = offset * max;
+    o.drag = Some(Drag::Bar { grab });
+}
+
+/// A press on an edge of the window at `mouse`.
+pub(crate) fn edge_press(o: &mut Overlay, gui: [f32; 2], edge: [bool; 4], mouse: [f32; 2]) {
+    let size = geom(o, gui).panel;
+    o.drag = Some(Drag::Resize {
+        edge,
+        start: mouse,
+        size: [size[2], size[3]],
+    });
+}
+
+/// The pointer moved to `mouse` with something held: the marker follows it, or the window's size.
+/// True when the window's size changed.
+pub(crate) fn drag_to(o: &mut Overlay, gui: [f32; 2], mouse: [f32; 2]) -> bool {
+    match o.drag {
+        Some(Drag::Bar { grab }) => {
+            let g = geom(o, gui);
+            let max = max_scroll(o, gui);
+            let offset = geo::bar_drag(
+                g.scrollbar,
+                g.viewport[3],
+                max,
+                bar_offset(o, max),
+                grab,
+                mouse[1],
+            );
+            o.scroll = offset * max;
+            false
+        }
+        Some(Drag::Resize { edge, start, size }) => {
+            let min_w = geo::MIN_WIDTH.min(gui[0] - 12.0).max(120.0);
+            let min = [min_w, geo::MIN_HEIGHT];
+            let max = [(gui[0] - 12.0).max(min_w), (gui[1] - 58.0).max(geo::MIN_HEIGHT)];
+            let now = geo::resized(size, edge, start, mouse, min, max);
+            let changed = now != o.size;
+            o.size = now;
+            changed
+        }
+        None => false,
+    }
+}
+
+/// The wheel over a scrolling list: `notches` of it (up is positive).
+pub(crate) fn scroll_by(o: &mut Overlay, gui: [f32; 2], notches: f32) {
+    let max = max_scroll(o, gui);
+    o.scroll = (o.scroll - notches * geo::WHEEL).clamp(0.0, max);
 }
 
 /// The window's width, for the item list to lay out beside it.
@@ -48,7 +162,8 @@ pub(crate) fn width(o: &Overlay, gui: [f32; 2]) -> f32 {
 
 /// How many pages the selected tab has (one at least).
 pub(crate) fn pages(o: &Overlay, gui: [f32; 2]) -> usize {
-    geo::pages(&o.views, geom(o, gui).content).len().max(1)
+    let g = geom(o, gui);
+    geo::pages(&o.views, g.content, nav_of(o, &g)).len().max(1)
 }
 
 /// The stack a slot of alternatives shows now: one a second, as JEI cycles.
@@ -70,6 +185,10 @@ pub(crate) enum Hit {
     NextTab,
     PrevPage,
     NextPage,
+    /// The scrollbar.
+    Bar,
+    /// An edge of the window (left, right, top, bottom) that resizes it.
+    Edge([bool; 4]),
     /// A stack: an input, a result, an output or a catalyst. `output` is the category output's index in its
     /// view, for its tooltip.
     Stack {
@@ -86,6 +205,13 @@ pub(crate) enum Hit {
 /// Every hit place of the page shown, in drawing order.
 fn places(o: &Overlay, g: &geo::Geom) -> Vec<(Hit, [f32; 4])> {
     let mut out = Vec::new();
+    let nav = nav_of(o, g);
+    let [_, vy, _, vh] = g.viewport;
+    // A scrolling list's slots count only where the viewport shows some of them.
+    let shown = |r: &[f32; 4]| !g.scrolling || (r[1] + r[3] > vy && r[1] < vy + vh);
+    if g.scrolling && geo::max_scroll(&o.views, g.content) > 0.0 {
+        out.push((Hit::Bar, g.scrollbar));
+    }
     for (i, rect) in &g.tabs {
         out.push((Hit::Tab(*i), *rect));
     }
@@ -93,7 +219,7 @@ fn places(o: &Overlay, g: &geo::Geom) -> Vec<(Hit, [f32; 4])> {
         out.push((Hit::PrevTab, g.prev_tab));
         out.push((Hit::NextTab, g.next_tab));
     }
-    let pages = geo::pages(&o.views, g.content);
+    let pages = geo::pages(&o.views, g.content, nav);
     if pages.len() > 1 {
         out.push((Hit::PrevPage, g.prev_page));
         out.push((Hit::NextPage, g.next_page));
@@ -110,11 +236,11 @@ fn places(o: &Overlay, g: &geo::Geom) -> Vec<(Hit, [f32; 4])> {
     let Some(pieces) = pages.get(page) else {
         return out;
     };
-    for (n, at) in geo::layout(&o.views, pieces, g.content) {
+    for (n, at) in geo::layout(&o.views, pieces, g.content, nav) {
         let piece = &pieces[n];
         let view = &o.views[piece.view];
         let placed = geo::place(view, piece, at, g.content[2]);
-        for (part, rect) in placed.slots {
+        for (part, rect) in placed.slots.into_iter().filter(|(_, r)| shown(r)) {
             let (stack, output) = match part {
                 geo::Part::Input(i) => (view.slots.get(i).and_then(|s| cycled(s)), None),
                 geo::Part::Result(i) => (view.results.get(i), Some(i)),
@@ -128,23 +254,49 @@ fn places(o: &Overlay, g: &geo::Geom) -> Vec<(Hit, [f32; 4])> {
                 out.push((hit, rect));
             }
         }
-        if let (Some(rect), Some(on)) = (placed.button, view.action) {
+        if let (Some(rect), Some(on)) = (placed.button, view.action)
+            && shown(&rect)
+        {
             out.push((Hit::Plus(piece.view, on), rect));
         }
     }
     out
 }
 
+/// Whether a hit is on the recipes (what a scrolling list's viewport clips), not on the window's frame.
+fn on_recipes(hit: &Hit) -> bool {
+    matches!(hit, Hit::Stack { view: Some(_), .. } | Hit::Plus(..))
+}
+
 /// The hit under `point`, if the point is on the recipe screen at all.
 pub(crate) fn hit(o: &Overlay, gui: [f32; 2], point: [f32; 2]) -> Option<Hit> {
     let g = geom(o, gui);
     let places = places(o, &g);
-    if let Some((hit, _)) = places.iter().rev().find(|(_, r)| jei::inside(point, *r)) {
+    // The recipes a scrolling list clips can't be pointed at outside its viewport.
+    let in_view = !g.scrolling || jei::inside(point, g.viewport);
+    let found = places
+        .iter()
+        .rev()
+        .find(|(h, r)| jei::inside(point, *r) && (in_view || !on_recipes(h)));
+    if let Some((hit, _)) = found {
         return Some(hit.clone());
     }
-    let on = jei::inside(point, g.panel)
-        || (!g.catalysts.is_empty() && jei::inside(point, g.catalyst_panel));
-    on.then_some(Hit::Inside)
+    if jei::inside(point, g.panel) {
+        // The window's edges resize it.
+        let [x, y, w, h] = g.panel;
+        let edge = [
+            point[0] < x + geo::EDGE,
+            point[0] >= x + w - geo::EDGE,
+            point[1] < y + geo::EDGE,
+            point[1] >= y + h - geo::EDGE,
+        ];
+        return Some(if edge.iter().any(|e| *e) {
+            Hit::Edge(edge)
+        } else {
+            Hit::Inside
+        });
+    }
+    (!g.catalysts.is_empty() && jei::inside(point, g.catalyst_panel)).then_some(Hit::Inside)
 }
 
 /// What the drawing needs of the game besides the draw context.
@@ -295,6 +447,21 @@ impl Painter<'_> {
         self.draw.text(label, at, color, true);
     }
 
+    /// JEI's scrollbar: its track and the marker.
+    fn scrollbar(&mut self, area: [f32; 4], visible: f32, hidden: f32, offset: f32) {
+        if !self.nine("scrollbar_background", area, 6.0) {
+            self.draw.fill(area, 0xFF_00_00_00);
+            self.draw.fill(
+                [area[0] + 1.0, area[1] + 1.0, area[2] - 2.0, area[3] - 2.0],
+                SLOT_BG,
+            );
+        }
+        let marker = geo::marker(area, visible, hidden, offset);
+        if !self.nine("scrollbar_marker", marker, 2.0) {
+            self.slot(marker);
+        }
+    }
+
     fn stack(&mut self, stack: &Stack, r: [f32; 4]) {
         let item = st().tables.item_stack(stack);
         if let Some(item) = item {
@@ -410,7 +577,8 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
     p.centred(&name, g.title[0], g.title[1], g.title_bar[2] - 4.0, WHITE);
     p.button(g.prev_tab, "<", o.tabs.len() > 1, hit == Some(Hit::PrevTab));
     p.button(g.next_tab, ">", o.tabs.len() > 1, hit == Some(Hit::NextTab));
-    let pages = geo::pages(&o.views, g.content);
+    let nav = nav_of(&o, &g);
+    let pages = geo::pages(&o.views, g.content, nav);
     let page = o.page.min(pages.len().saturating_sub(1));
     // A one-page category shows its whole subtitle there; more pages, the page too.
     let line = match (o.subtitle.is_empty(), pages.len() > 1) {
@@ -418,28 +586,33 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
         (false, false) => o.subtitle.clone(),
         (false, true) => format!("{}  {}", o.subtitle, lang.page_of(page, pages.len())),
     };
-    p.bar(g.page_bar);
-    p.centred(
-        &line,
-        g.page_text[0],
-        g.page_text[1],
-        g.page_bar[2] - 4.0,
-        WHITE,
-    );
-    p.button(
-        g.prev_page,
-        "<",
-        pages.len() > 1,
-        hit == Some(Hit::PrevPage),
-    );
-    p.button(
-        g.next_page,
-        ">",
-        pages.len() > 1,
-        hit == Some(Hit::NextPage),
-    );
+    // Scrolling has no page row: the scrollbar takes its place.
+    if !g.scrolling {
+        p.bar(g.page_bar);
+        p.centred(
+            &line,
+            g.page_text[0],
+            g.page_text[1],
+            g.page_bar[2] - 4.0,
+            WHITE,
+        );
+        p.button(
+            g.prev_page,
+            "<",
+            pages.len() > 1,
+            hit == Some(Hit::PrevPage),
+        );
+        p.button(
+            g.next_page,
+            ">",
+            pages.len() > 1,
+            hit == Some(Hit::NextPage),
+        );
+    }
+    // A scrolling list shows through its viewport: what is outside it is cut.
+    let clipped = g.scrolling && p.draw.push_clip(g.viewport).is_ok();
     if let Some(pieces) = pages.get(page) {
-        for (n, at) in geo::layout(&o.views, pieces, g.content) {
+        for (n, at) in geo::layout(&o.views, pieces, g.content, nav) {
             let piece = &pieces[n];
             let view = &o.views[piece.view];
             let placed = geo::place(view, piece, at, g.content[2]);
@@ -499,6 +672,15 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
                     p.draw.text(text, at, 0xFF_50_50_50, false);
                 }
             }
+        }
+    }
+    if clipped {
+        let _ = p.draw.pop_clip();
+    }
+    if g.scrolling {
+        let max = geo::max_scroll(&o.views, g.content);
+        if max > 0.0 {
+            p.scrollbar(g.scrollbar, g.viewport[3], max, bar_offset(&o, max));
         }
     }
     // The tooltip of what the pointer is on.

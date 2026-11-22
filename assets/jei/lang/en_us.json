@@ -10,6 +10,10 @@
   "jei.setting.sort.mod": "Mod",
   "jei.setting.sort.name": "Name",
   "jei.setting.sort.id": "ID",
+  "jei.setting.navigation": "Recipe navigation",
+  "jei.setting.navigation.paged": "Pages",
+  "jei.setting.navigation.scrolling": "Scrolling",
+  "jei.setting.navigation.tooltip": "Recipes turn pages, or scroll under a scrollbar. Drag the recipe window's edges to resize it.",
   "jei.setting.language": "Language",
   "jei.setting.language.en": "English",
   "jei.setting.language.es": "Español"

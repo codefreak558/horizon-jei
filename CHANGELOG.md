@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — 2026-11-22
+
+- **Resize the recipe window.** Drag its edges or corners (5 px, as JEI's); it is centred, so each pixel
+  moves it two. The size is kept in `jei.cfg` (`recipe_width`, `recipe_height`), from 198 by 175 up to the
+  screen. The Horizon SDK has no cursor-shape call, so the pointer does not change over an edge.
+- **Scrolling recipes.** "Recipe navigation" on the settings page (`navigation=scrolling` in `jei.cfg`)
+  lists every recipe under JEI's scrollbar instead of turning pages: drag the marker, click the track, or
+  use the wheel. Paged stays the default, as JEI's.
 ## 0.5.2 — 2026-11-22
 
 - **Two columns of recipes.** As JEI's grid: recipes small enough for the window (smelting, stonecutting,

@@ -6,7 +6,7 @@
 /// settings and keys.
 pub const ID: &str = "jei";
 pub const NAME: &str = "JEI";
-pub const VERSION: &str = "0.5.2";
+pub const VERSION: &str = "0.6.0";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
 
 /// The Horizon build the mod is made for (horizon-mod.toml's `[native]`).
@@ -973,6 +973,12 @@ pub struct Config {
     /// Recipes in the item panel beside the screen (0.2's view) instead of
     /// JEI's own recipe screen over it.
     pub docked: bool,
+    /// The recipe window's preferred size, as the player dragged it (JEI's `recipeGuiWidth` and
+    /// `recipeGuiHeight`).
+    pub recipe_width: u32,
+    pub recipe_height: u32,
+    /// Recipes scroll under a scrollbar instead of turning pages (JEI's `navigationMode`).
+    pub scrolling: bool,
 }
 
 impl Default for Config {
@@ -982,6 +988,9 @@ impl Default for Config {
             hints: true,
             bookmarks: true,
             docked: false,
+            recipe_width: screen::MIN_WIDTH as u32,
+            recipe_height: screen::DEFAULT_HEIGHT as u32,
+            scrolling: false,
         }
     }
 }
@@ -1004,6 +1013,17 @@ impl Config {
                 "hints" => config.hints = truthy(value, config.hints),
                 "bookmarks" => config.bookmarks = truthy(value, config.bookmarks),
                 "recipes" => config.docked = value.trim() == "panel",
+                "recipe_width" => {
+                    if let Ok(n) = value.parse::<u32>() {
+                        config.recipe_width = n.max(screen::MIN_WIDTH as u32);
+                    }
+                }
+                "recipe_height" => {
+                    if let Ok(n) = value.parse::<u32>() {
+                        config.recipe_height = n.max(screen::MIN_HEIGHT as u32);
+                    }
+                }
+                "navigation" => config.scrolling = value == "scrolling",
                 _ => {}
             }
         }
@@ -1012,11 +1032,14 @@ impl Config {
 
     pub fn to_text(self) -> String {
         format!(
-            "sort={}\nhints={}\nbookmarks={}\nrecipes={}\n",
+            "sort={}\nhints={}\nbookmarks={}\nrecipes={}\nrecipe_width={}\nrecipe_height={}\nnavigation={}\n",
             self.sort.code(),
             self.hints,
             self.bookmarks,
-            if self.docked { "panel" } else { "screen" }
+            if self.docked { "panel" } else { "screen" },
+            self.recipe_width,
+            self.recipe_height,
+            if self.scrolling { "scrolling" } else { "paged" }
         )
     }
 }
@@ -2132,6 +2155,16 @@ pub mod screen {
     use super::{Layout, View};
 
     pub const SLOT: f32 = 18.0;
+    /// JEI's smallest window, and the height it starts with.
+    pub const MIN_WIDTH: f32 = 198.0;
+    pub const MIN_HEIGHT: f32 = 175.0;
+    pub const DEFAULT_HEIGHT: f32 = 350.0;
+    /// The scrollbar's width, and what it takes beside the recipes.
+    pub const BAR_WIDTH: f32 = 14.0;
+    /// How far one wheel notch scrolls.
+    pub const WHEEL: f32 = 20.0;
+    /// The thickness of the window's edges that resize it.
+    pub const EDGE: f32 = 5.0;
     pub const TAB: [f32; 2] = [24.0, 24.0];
     /// One output of a category recipe: the slot and two short lines.
     pub const CHANCE: [f32; 2] = [52.0, 20.0];
@@ -2162,14 +2195,41 @@ pub mod screen {
         pub content: [f32; 4],
         pub catalyst_panel: [f32; 4],
         pub catalysts: Vec<[f32; 4]>,
+        /// Recipes scroll: no page bar, and the scrollbar at the right.
+        pub scrolling: bool,
+        pub scrollbar: [f32; 4],
+        /// Where the recipes show (and the scrolling ones are clipped to): their backgrounds' area.
+        pub viewport: [f32; 4],
+    }
+
+    /// How the recipes move: by pages, or by pixels down a list.
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct Nav {
+        pub scrolling: bool,
+        pub offset: f32,
+    }
+
+    impl Nav {
+        pub const PAGED: Nav = Nav {
+            scrolling: false,
+            offset: 0.0,
+        };
     }
 
     /// JEI's window: 198 wide, as tall as the screen less 58 (175 to 350), the tabs 21 above it.
-    pub fn geom(gui: [f32; 2], tabs: usize, selected: usize, catalysts: usize) -> Geom {
-        let width = 198.0f32.min(gui[0] - 12.0).max(120.0);
+    pub fn geom(
+        gui: [f32; 2],
+        tabs: usize,
+        selected: usize,
+        catalysts: usize,
+        pref: [f32; 2],
+        scrolling: bool,
+    ) -> Geom {
+        let min_w = MIN_WIDTH.min(gui[0] - 12.0).max(120.0);
+        let width = pref[0].clamp(min_w, (gui[0] - 12.0).max(min_w));
         let x = ((gui[0] - width) / 2.0).floor();
-        let full = (gui[1] - 58.0).max(175.0);
-        let height = full.min(350.0);
+        let full = (gui[1] - 58.0).max(MIN_HEIGHT);
+        let height = full.min(pref[1].max(MIN_HEIGHT));
         let y = TAB[1] + 21.0 + ((full - height) / 2.0).floor();
         let fit = (((width - 4.0) / TAB[0]).floor() as usize).max(1);
         let first = selected
@@ -2198,6 +2258,12 @@ pub mod screen {
                 .collect();
             ([left, top, w, h], slots)
         };
+        // Scrolling drops the page row and gives the scrollbar its column.
+        let (top, chrome, bar) = if scrolling {
+            (19.0, 25.0, BAR_WIDTH + 2.0)
+        } else {
+            (34.0, 40.0, 0.0)
+        };
         Geom {
             panel: [x, y, width, height],
             tabs: shown_tabs,
@@ -2211,13 +2277,128 @@ pub mod screen {
             page_text: [x + width / 2.0, y + 21.0],
             content: [
                 x + 6.0 + PAD,
-                y + 34.0 + PAD,
-                width - 12.0 - 2.0 * PAD,
-                height - 40.0 - 2.0 * PAD,
+                y + top + PAD,
+                width - 12.0 - bar - 2.0 * PAD,
+                height - chrome - 2.0 * PAD,
             ],
             catalyst_panel,
             catalysts: catalyst_slots,
+            scrolling,
+            scrollbar: if scrolling {
+                [x + width - 19.0, y + top, BAR_WIDTH, height - chrome]
+            } else {
+                [0.0; 4]
+            },
+            viewport: [x + 6.0, y + top, width - 12.0 - bar, height - chrome],
         }
+    }
+
+    /// The height of everything a scrolling window lists, with the backgrounds' margins.
+    pub fn scroll_height(views: &[View], content: [f32; 4]) -> f32 {
+        let nav = Nav {
+            scrolling: true,
+            offset: 0.0,
+        };
+        if let Some(grid) = grid(views, content) {
+            let rows = views.len().div_ceil(grid.columns) as f32;
+            return rows * (grid.cell[1] + CELL_GAP) + CELL_GAP;
+        }
+        let pages = pages(views, content, nav);
+        let Some(page) = pages.first() else {
+            return 0.0;
+        };
+        let blocks: f32 = (page.iter())
+            .map(|p| size(&views[p.view], p, content[2])[1] + GAP)
+            .sum();
+        blocks - GAP + 2.0 * PAD
+    }
+
+    /// How far the list scrolls: what does not fit the window's recipe area.
+    pub fn max_scroll(views: &[View], content: [f32; 4]) -> f32 {
+        (scroll_height(views, content) - (content[3] + 2.0 * PAD)).max(0.0)
+    }
+
+    /// The scrollbar's marker in `area`: as tall as the share of the list that shows, at `offset` (0 to 1).
+    pub fn marker(area: [f32; 4], visible: f32, hidden: f32, offset: f32) -> [f32; 4] {
+        let track_w = (area[2] - 2.0).max(0.0);
+        let track_h = (area[3] - 2.0).max(0.0);
+        let mut height = track_h;
+        let total = visible.max(0.0) + hidden.max(0.0);
+        if hidden > 0.0 && total > 0.0 {
+            height = (track_h * (visible / total))
+                .round()
+                .clamp(14.0f32.min(track_h), track_h);
+        }
+        let y = ((track_h - height) * offset.clamp(0.0, 1.0)).round();
+        [area[0] + 1.0, area[1] + 1.0 + y, track_w, height]
+    }
+
+    /// The offset that puts the marker's top at `top`.
+    fn offset_at(area: [f32; 4], marker: [f32; 4], top: f32, fallback: f32) -> f32 {
+        let travel = (area[3] - 2.0).max(0.0) - marker[3];
+        if travel <= 0.0 {
+            return fallback.clamp(0.0, 1.0);
+        }
+        ((top - (area[1] + 1.0)) / travel).clamp(0.0, 1.0)
+    }
+
+    /// A press on the bar at `y`: the offset it gives (a press off the marker centres it there) and where
+    /// on the marker it grabbed.
+    pub fn bar_press(area: [f32; 4], visible: f32, hidden: f32, offset: f32, y: f32) -> (f32, f32) {
+        let mut at = marker(area, visible, hidden, offset);
+        let mut offset = offset;
+        if y < at[1] || y >= at[1] + at[3] {
+            offset = offset_at(area, at, y - at[3] / 2.0, offset);
+            at = marker(area, visible, hidden, offset);
+        }
+        (offset, y - at[1])
+    }
+
+    /// The offset after the pointer moved to `y` holding the marker `grab` pixels from its top.
+    pub fn bar_drag(
+        area: [f32; 4],
+        visible: f32,
+        hidden: f32,
+        offset: f32,
+        grab: f32,
+        y: f32,
+    ) -> f32 {
+        let at = marker(area, visible, hidden, offset);
+        offset_at(area, at, y - grab, offset)
+    }
+
+    /// The window's size after dragging its edge `edge` (left, right, top, bottom) from `start` to `now`:
+    /// the window is centred, so each pixel moves it two, and it stays within `min` and `max`.
+    pub fn resized(
+        size: [f32; 2],
+        edge: [bool; 4],
+        start: [f32; 2],
+        now: [f32; 2],
+        min: [f32; 2],
+        max: [f32; 2],
+    ) -> [f32; 2] {
+        let mut out = size;
+        if edge[0] || edge[1] {
+            let delta = if edge[0] {
+                start[0] - now[0]
+            } else {
+                now[0] - start[0]
+            };
+            out[0] = (size[0] + 2.0 * delta)
+                .round()
+                .clamp(min[0].min(max[0]), max[0]);
+        }
+        if edge[2] || edge[3] {
+            let delta = if edge[2] {
+                start[1] - now[1]
+            } else {
+                now[1] - start[1]
+            };
+            out[1] = (size[1] + 2.0 * delta)
+                .round()
+                .clamp(min[1].min(max[1]), max[1]);
+        }
+        out
     }
 
     /// What a part of a recipe on the screen is.
@@ -2304,6 +2485,7 @@ pub mod screen {
         page: &[Piece],
         content: [f32; 4],
         grid: &Grid,
+        nav: Nav,
     ) -> Vec<(usize, [f32; 2])> {
         let area = [
             content[0] - PAD,
@@ -2329,7 +2511,12 @@ pub mod screen {
                 } else {
                     column_x + ((column_w - bw - grid.buttons) / 2.0).floor()
                 };
-                let top = area[1] + spacing + row * (grid.cell[1] + spacing);
+                let top = if nav.scrolling {
+                    // Scrolling lists rows 4 px apart from the top, as JEI's `getRecipeY`.
+                    area[1] + CELL_GAP + row * (grid.cell[1] + CELL_GAP) - nav.offset
+                } else {
+                    area[1] + spacing + row * (grid.cell[1] + spacing)
+                };
                 let y = top + ((grid.cell[1] - bh) / 2.0).floor();
                 (n, [x + PAD, y + PAD])
             })
@@ -2363,11 +2550,17 @@ pub mod screen {
 
     /// The pieces, page by page: as many recipes as fit the content's
     /// height; a category recipe too tall for a page goes on over pages.
-    pub fn pages(views: &[View], content: [f32; 4]) -> Vec<Vec<Piece>> {
+    pub fn pages(views: &[View], content: [f32; 4], nav: Nav) -> Vec<Vec<Piece>> {
         if let Some(grid) = grid(views, content) {
             let all: Vec<usize> = (0..views.len()).collect();
+            // Scrolling has one page: the whole list.
+            let per = if nav.scrolling {
+                all.len().max(1)
+            } else {
+                grid.columns * grid.rows
+            };
             return all
-                .chunks(grid.columns * grid.rows)
+                .chunks(per)
                 .map(|chunk| {
                     chunk
                         .iter()
@@ -2382,7 +2575,7 @@ pub mod screen {
         let mut pieces = Vec::new();
         for (index, view) in views.iter().enumerate() {
             let count = view.chances.len();
-            if view.layout != Layout::Chance || count == 0 {
+            if view.layout != Layout::Chance || count == 0 || nav.scrolling {
                 pieces.push(Piece {
                     view: index,
                     outputs: 0..count,
@@ -2409,6 +2602,13 @@ pub mod screen {
                 });
                 from = to;
             }
+        }
+        if nav.scrolling {
+            return if pieces.is_empty() {
+                Vec::new()
+            } else {
+                vec![pieces]
+            };
         }
         let mut pages: Vec<Vec<Piece>> = Vec::new();
         let mut used = 0.0;
@@ -2496,11 +2696,16 @@ pub mod screen {
     }
 
     /// A page's pieces with the top left of each, centred across the content.
-    pub fn layout(views: &[View], page: &[Piece], content: [f32; 4]) -> Vec<(usize, [f32; 2])> {
+    pub fn layout(
+        views: &[View],
+        page: &[Piece],
+        content: [f32; 4],
+        nav: Nav,
+    ) -> Vec<(usize, [f32; 2])> {
         if let Some(grid) = grid(views, content) {
-            return grid_layout(views, page, content, &grid);
+            return grid_layout(views, page, content, &grid, nav);
         }
-        let mut y = content[1];
+        let mut y = content[1] - if nav.scrolling { nav.offset } else { 0.0 };
         page.iter()
             .enumerate()
             .map(|(n, piece)| {
@@ -2561,7 +2766,7 @@ impl Session {
 mod tests {
     #[test]
     fn title_has_name_and_version() {
-        assert_eq!(super::title(), "JEI 0.5.2");
+        assert_eq!(super::title(), "JEI 0.6.0");
     }
 
     #[test]
@@ -3415,14 +3620,16 @@ mod tests {
             action: None,
             chances: c.recipes[0].outputs.clone(),
         };
-        let g = screen::geom([427.0, 240.0], 1, 0, 1);
-        let pages = screen::pages(std::slice::from_ref(&view), g.content);
+        let g = screen::geom([427.0, 240.0], 1, 0, 1, [198.0, 350.0], false);
+        let pages = screen::pages(std::slice::from_ref(&view), g.content, screen::Nav::PAGED);
         assert!(pages.len() > 1, "{pages:?}");
         let shown: usize = pages.iter().flatten().map(|p| p.outputs.len()).sum();
         assert_eq!(shown, 40);
         // Every output's slot lies inside the content.
         for page in &pages {
-            for (n, at) in screen::layout(std::slice::from_ref(&view), page, g.content) {
+            for (n, at) in
+                screen::layout(std::slice::from_ref(&view), page, g.content, screen::Nav::PAGED)
+            {
                 let placed = screen::place(&view, &page[n], at, g.content[2]);
                 for (_, r) in placed.slots {
                     assert!(
@@ -3434,8 +3641,8 @@ mod tests {
             }
         }
         // JEI's window is as tall as the screen less 58, up to 350.
-        assert_eq!(screen::geom([427.0, 680.0], 1, 0, 1).panel[3], 350.0);
-        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 1).panel[3], 182.0);
+        assert_eq!(screen::geom([427.0, 680.0], 1, 0, 1, [198.0, 350.0], false).panel[3], 350.0);
+        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 1, [198.0, 350.0], false).panel[3], 182.0);
     }
 
     #[test]
@@ -3451,18 +3658,19 @@ mod tests {
             action: None,
             chances: Vec::new(),
         };
-        let g = screen::geom([427.0, 240.0], 1, 0, 0);
+        let g = screen::geom([427.0, 240.0], 1, 0, 0, [198.0, 350.0], false);
+        let paged = screen::Nav::PAGED;
         // A smelting recipe (90 wide with its background) fits twice across the window.
         let smelting: Vec<_> = (0..6).map(|_| view(super::Layout::Cooking, 1, 1)).collect();
-        let pages = screen::pages(&smelting, g.content);
+        let pages = screen::pages(&smelting, g.content, paged);
         assert!(pages[0].len() >= 2, "{pages:?}");
-        let at = screen::layout(&smelting, &pages[0], g.content);
+        let at = screen::layout(&smelting, &pages[0], g.content, paged);
         assert!(at[1].1[0] > at[0].1[0] + 40.0, "{at:?}");
         assert_eq!(at[0].1[1], at[1].1[1], "{at:?}");
         // A crafting recipe (116 wide) takes the whole width: one column.
         let crafting: Vec<_> = (0..3).map(|_| view(super::Layout::Grid, 3, 3)).collect();
-        let pages = screen::pages(&crafting, g.content);
-        let at = screen::layout(&crafting, &pages[0], g.content);
+        let pages = screen::pages(&crafting, g.content, paged);
+        let at = screen::layout(&crafting, &pages[0], g.content, paged);
         assert!(at.len() < 2 || at[1].1[1] > at[0].1[1], "{at:?}");
         // Everything lies inside the content.
         for (n, p) in at {
@@ -3470,6 +3678,107 @@ mod tests {
             assert!(p[0] >= g.content[0] && p[0] + w <= g.content[0] + g.content[2] + 0.5);
             assert!(p[1] >= g.content[1] && p[1] + h <= g.content[1] + g.content[3] + 0.5);
         }
+    }
+
+    fn small_views(n: usize) -> Vec<super::View> {
+        (0..n)
+            .map(|_| super::View {
+                layout: super::Layout::Cooking,
+                width: 1,
+                height: 1,
+                slots: vec![Vec::new()],
+                results: Vec::new(),
+                note: String::new(),
+                action: None,
+                chances: Vec::new(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn scrolling_lists_every_recipe_and_moves_with_the_offset() {
+        use super::screen;
+        let views = small_views(40);
+        let g = screen::geom([427.0, 240.0], 1, 0, 0, [198.0, 350.0], true);
+        assert!(g.scrolling && g.scrollbar[2] == screen::BAR_WIDTH);
+        // The scrollbar sits inside the window, right of the recipes.
+        assert!(g.scrollbar[0] >= g.viewport[0] + g.viewport[2]);
+        assert!(g.scrollbar[0] + g.scrollbar[2] <= g.panel[0] + g.panel[2]);
+        let nav = |offset| screen::Nav {
+            scrolling: true,
+            offset,
+        };
+        let pages = screen::pages(&views, g.content, nav(0.0));
+        assert_eq!(pages.len(), 1);
+        assert_eq!(pages[0].len(), 40);
+        let max = screen::max_scroll(&views, g.content);
+        assert!(max > 0.0);
+        let top = screen::layout(&views, &pages[0], g.content, nav(0.0));
+        let moved = screen::layout(&views, &pages[0], g.content, nav(12.0));
+        assert_eq!(top[0].1[1] - 12.0, moved[0].1[1]);
+        // Scrolled to the end, the last row's background ends at the bottom of the recipe area.
+        let end = screen::layout(&views, &pages[0], g.content, nav(max));
+        let last = end.last().unwrap().1[1] + screen::SLOT + screen::PAD;
+        let bottom = g.content[1] + g.content[3] + screen::PAD;
+        assert!((last - bottom).abs() <= 8.0, "{last} {bottom}");
+        // A few recipes need no scrolling.
+        assert_eq!(screen::max_scroll(&small_views(2), g.content), 0.0);
+    }
+
+    #[test]
+    fn the_scrollbar_marker_follows_jei() {
+        use super::screen;
+        let area = [100.0, 50.0, 14.0, 102.0];
+        // Nothing hidden: the marker fills the track.
+        assert_eq!(screen::marker(area, 100.0, 0.0, 0.0), [101.0, 51.0, 12.0, 100.0]);
+        // Half hidden: half the track, and at the end it sits at the bottom.
+        let top = screen::marker(area, 100.0, 100.0, 0.0);
+        assert_eq!((top[1], top[3]), (51.0, 50.0));
+        assert_eq!(screen::marker(area, 100.0, 100.0, 1.0)[1], 101.0);
+        // Never smaller than 14 px.
+        assert_eq!(screen::marker(area, 1.0, 1000.0, 0.0)[3], 14.0);
+        // A press off the marker centres it there; dragging keeps the grab.
+        let (offset, grab) = screen::bar_press(area, 100.0, 100.0, 0.0, 101.0);
+        assert!((screen::marker(area, 100.0, 100.0, offset)[1] + 25.0 - 101.0).abs() <= 1.0);
+        assert_eq!(grab, 25.0);
+        let end = screen::bar_drag(area, 100.0, 100.0, offset, grab, 400.0);
+        assert_eq!(end, 1.0);
+        let start = screen::bar_drag(area, 100.0, 100.0, end, grab, -400.0);
+        assert_eq!(start, 0.0);
+    }
+
+    #[test]
+    fn dragging_an_edge_resizes_the_centred_window() {
+        use super::screen;
+        let (min, max) = ([198.0, 175.0], [415.0, 350.0]);
+        let at = |edge, to| screen::resized([198.0, 300.0], edge, [100.0, 100.0], to, min, max);
+        // The right edge 10 px out widens it by 20; the left edge 10 px out does the same.
+        assert_eq!(at([false, true, false, false], [110.0, 100.0]), [218.0, 300.0]);
+        assert_eq!(at([true, false, false, false], [90.0, 100.0]), [218.0, 300.0]);
+        // The bottom edge down grows its height, up shrinks it; both stay within the limits.
+        assert_eq!(at([false, false, false, true], [100.0, 90.0])[1], 280.0);
+        assert_eq!(at([false, false, false, true], [100.0, 500.0])[1], 350.0);
+        assert_eq!(at([false, false, false, true], [100.0, -500.0])[1], 175.0);
+        assert_eq!(at([false, true, false, false], [-500.0, 100.0])[0], 198.0);
+        // A corner moves both; an untouched axis keeps its size.
+        assert_eq!(at([false, true, false, true], [105.0, 105.0]), [208.0, 310.0]);
+        assert_eq!(at([false, true, false, false], [105.0, 500.0])[1], 300.0);
+    }
+
+    #[test]
+    fn a_wider_window_and_the_navigation_come_from_the_config() {
+        use super::screen;
+        let wide = screen::geom([427.0, 240.0], 1, 0, 0, [300.0, 350.0], false);
+        assert_eq!(wide.panel[2], 300.0);
+        // Never narrower than 198, never wider than the screen less 12.
+        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 0, [50.0, 0.0], false).panel[2], 198.0);
+        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 0, [999.0, 0.0], false).panel[2], 415.0);
+        let config = super::Config::parse("recipe_width=250\nrecipe_height=10\nnavigation=scrolling\n");
+        assert_eq!((config.recipe_width, config.recipe_height), (250, 175));
+        assert!(config.scrolling);
+        assert_eq!(super::Config::parse(&config.to_text()), config);
+        assert_eq!(super::Config::parse("").recipe_width, 198);
+        assert!(!super::Config::parse("navigation=paged").scrolling);
     }
 
     #[test]

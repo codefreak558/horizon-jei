@@ -10,6 +10,10 @@
   "jei.setting.sort.mod": "Mod",
   "jei.setting.sort.name": "Nombre",
   "jei.setting.sort.id": "ID",
+  "jei.setting.navigation": "Navegación de recetas",
+  "jei.setting.navigation.paged": "Páginas",
+  "jei.setting.navigation.scrolling": "Desplazamiento",
+  "jei.setting.navigation.tooltip": "Las recetas pasan de página o se desplazan con una barra. Arrastra los bordes de la ventana para cambiar su tamaño.",
   "jei.setting.language": "Idioma",
   "jei.setting.language.en": "English",
   "jei.setting.language.es": "Español"
