@@ -14,7 +14,11 @@ pub fn settings() -> [SettingSpec; 4] {
         SettingSpec::choice(
             "sort",
             "jei.setting.sort",
-            ["jei.setting.sort.name", "jei.setting.sort.id"],
+            [
+                "jei.setting.sort.mod",
+                "jei.setting.sort.name",
+                "jei.setting.sort.id",
+            ],
             0,
         ),
         SettingSpec::choice(
@@ -27,9 +31,10 @@ pub fn settings() -> [SettingSpec; 4] {
 }
 
 /// The client commands, as the chat box completes them.
-pub const COMMANDS: [&str; 6] = [
+pub const COMMANDS: [&str; 7] = [
     "jei",
     "jei give",
+    "jei sort mod",
     "jei sort name",
     "jei sort id",
     "jei bookmarks clear",
@@ -40,14 +45,19 @@ fn flag(on: bool) -> &'static str {
     if on { "true" } else { "false" }
 }
 
+/// The page's choice for an order: Mod, Name, ID.
+fn sort_choice(sort: Sort) -> &'static str {
+    match sort {
+        Sort::Mod => "0",
+        Sort::Name => "1",
+        Sort::Id => "2",
+    }
+}
+
 /// Shows the file's config on the settings page.
 pub(crate) fn show(host: &dyn ClientHost, config: Config) {
     host.set_setting(jei::ID, "bookmarks", flag(config.bookmarks));
-    let sort = match config.sort {
-        Sort::Name => "0",
-        Sort::Id => "1",
-    };
-    host.set_setting(jei::ID, "sort", sort);
+    host.set_setting(jei::ID, "sort", sort_choice(config.sort));
 }
 
 /// A setting changed on the page: the file follows, and a new order shows at once.
@@ -57,8 +67,9 @@ pub(crate) fn changed(host: &mut dyn ClientHost, key: &str) {
         "bookmarks" => config.bookmarks = host.setting_bool("bookmarks").unwrap_or(true),
         "sort" => {
             let sort = match host.setting_choice("sort") {
-                Some(1) => Sort::Id,
-                _ => Sort::Name,
+                Some(1) => Sort::Name,
+                Some(2) => Sort::Id,
+                _ => Sort::Mod,
             };
             glue::set_sort(host, sort);
             return;
@@ -91,7 +102,7 @@ pub(crate) fn command(host: &mut dyn ClientHost, line: &str) -> bool {
         }
         Some(jei::Command::Sort(sort)) => {
             // `set_setting` fires no `setting_changed`: the order is applied here.
-            host.set_setting(jei::ID, "sort", if sort == Sort::Id { "1" } else { "0" });
+            host.set_setting(jei::ID, "sort", sort_choice(sort));
             glue::set_sort(host, sort);
             lang.sort_button(sort)
         }

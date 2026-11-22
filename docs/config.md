@@ -33,7 +33,7 @@ the mod first needs them (a world opens, or the settings page opens).
 
 | Key | Values | Default | What it does |
 |---|---|---|---|
-| `sort` | `name` / `id` | `name` | The item list's order: by the game's name (then id, then variant), or by id. The settings page's "Sort" button and `/jei sort name\|id` change it, and the open list is rewritten at once. |
+| `sort` | `mod` / `name` / `id` | `mod` | The item list's order: by mod as JEI does (Minecraft first, then each mod by its name, the game's registry order inside each), by the game's name (then id, then variant), or by id. The settings page's "Item order" choice and `/jei sort mod\|name\|id` change it, and the open list is rewritten at once. |
 | `hints` | `true` / `false` | `true` | Read and written back for 0.3's files; 0.4 shows no tooltip lines, so it does nothing. |
 | `bookmarks` | `true` / `false` | `true` | Draws the bookmark bar over container screens. Turning it off keeps the bookmarks and still bookmarks the stack the A key points at. |
 | `recipes` | `screen` / `panel` | `screen` | 0.3's choice of the docked view. Read and kept; 0.4 always uses JEI's recipe screen. |
@@ -62,6 +62,6 @@ most 24 bookmarks, the bar's two columns of twelve; `/jei bookmarks clear` empti
 | `/jei` or `/jei about` | The build and how many items and recipes the tables hold. |
 | `/jei give` | Toggles "Click gives items". |
 | `/jei sort` | Says the list's order. |
-| `/jei sort name` / `/jei sort id` | Sets it. |
+| `/jei sort mod` / `/jei sort name` / `/jei sort id` | Sets it. |
 | `/jei bookmarks clear` | Empties the bookmark bar. |
 | `/jei config` | The paths of `jei.cfg` and `bookmarks.txt`. |
