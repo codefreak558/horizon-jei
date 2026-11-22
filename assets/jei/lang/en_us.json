@@ -1,0 +1,15 @@
+{
+  "jei.key.recipe": "Show recipes",
+  "jei.key.uses": "Show uses",
+  "jei.key.bookmark": "Bookmark item",
+  "jei.setting.give": "Click gives items",
+  "jei.setting.give.tooltip": "In creative mode, a click on a listed item gives one; a right click gives a stack.",
+  "jei.setting.bookmarks": "Bookmark bar",
+  "jei.setting.bookmarks.tooltip": "The bar of bookmarked items at the top left of container screens.",
+  "jei.setting.sort": "Item order",
+  "jei.setting.sort.name": "Name",
+  "jei.setting.sort.id": "ID",
+  "jei.setting.language": "Language",
+  "jei.setting.language.en": "English",
+  "jei.setting.language.es": "Español"
+}
