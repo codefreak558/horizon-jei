@@ -2,6 +2,7 @@
 //!
 //! `runtime` is the viewer (search, sort, recipe pages, bookmarks, config), with no game in it; `glue` wires it
 //! to the mod API; `window` draws JEI's recipe screen; `settings` is the mod's page and `/jei`.
+pub mod api;
 pub mod kit_collection;
 pub mod kit_math;
 pub mod runtime;
@@ -16,6 +17,7 @@ mod window;
 #[cfg(test)]
 mod tests;
 
+pub use api::{clear_category, register_category, set_chance_recipes};
 pub use glue::{shaped, tags_named};
 pub use runtime::*;
 pub use settings::{COMMANDS, settings};

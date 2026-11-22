@@ -55,6 +55,8 @@ pub(crate) struct State {
     /// Build the viewer again (the server's recipes arrived, or the first read had none).
     rebuild: bool,
     retry: u32,
+    /// The add-on registry's generation the viewer has (None: not yet).
+    categories_seen: Option<u64>,
     /// JEI's recipe screen, while it is open.
     pub(crate) overlay: Option<Overlay>,
     /// The last press went to the recipe screen: its release and drags too.
@@ -162,6 +164,7 @@ impl State {
             overlay_at: None,
             rebuild: false,
             retry: 0,
+            categories_seen: None,
             overlay: None,
             overlay_pressed: false,
             gui: [0.0, 0.0],
@@ -632,6 +635,7 @@ pub(crate) fn sync(host: &mut dyn ClientHost) {
         needs_build
     };
     if !needs_build {
+        refresh_categories();
         return;
     }
     load(host);
@@ -648,6 +652,7 @@ pub(crate) fn sync(host: &mut dyn ClientHost) {
     {
         let mut state = st();
         state.session.set_viewer(viewer);
+        state.categories_seen = None;
         state.tables = tables;
         if none {
             // A world still joining has no recipes yet: read again in a while.
@@ -655,9 +660,25 @@ pub(crate) fn sync(host: &mut dyn ClientHost) {
             state.retry = RETRY_TICKS;
         }
     }
+    refresh_categories();
     host.panel_style(jei::ID, panel_style(0));
     st().panel_window = Some(0);
     apply_or_say(host, out);
+}
+
+/// Gives the viewer the add-on categories (`crate::api`) when they changed since it last read them, so a mod may
+/// register before or after the viewer is built.
+fn refresh_categories() {
+    let now = crate::api::generation();
+    let mut state = st();
+    if state.categories_seen == Some(now) {
+        return;
+    }
+    let (generation, categories) = crate::api::snapshot();
+    if let Some(viewer) = state.viewer_mut() {
+        viewer.set_categories(categories);
+        state.categories_seen = Some(generation);
+    }
 }
 
 fn panel_style(window_width: u16) -> PanelStyle {

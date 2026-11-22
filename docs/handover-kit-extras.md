@@ -55,7 +55,7 @@ Because the data is server-side, the new mod has two routes:
 
 ## How it would hook into JEI
 
-There is no cross-mod API between the two yet. Options:
+Since 0.5 JEI has the API below ([`addon-api.md`](addon-api.md)); JER (`codefreak558/horizon-jer`) uses it. The options were:
 
 - **Standalone**: the new mod draws its own window, opened by its own key (as JER's is) or by a button.
 - **Through JEI**: JEI exposes a small public API (categories with chance outputs). `runtime::Category` /

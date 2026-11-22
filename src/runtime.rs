@@ -6,7 +6,7 @@
 /// settings and keys.
 pub const ID: &str = "jei";
 pub const NAME: &str = "JEI";
-pub const VERSION: &str = "0.4.1";
+pub const VERSION: &str = "0.5.0";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
 
 /// The Horizon build the mod is made for (horizon-mod.toml's `[native]`).
@@ -744,6 +744,8 @@ pub struct Category {
     pub title: String,
     pub subtitle: String,
     pub icon: Stack,
+    /// How its recipes are drawn; only `Chance` is today.
+    pub layout: Layout,
     pub catalysts: Vec<Stack>,
     pub recipes: Vec<ChanceRecipe>,
 }
@@ -1966,9 +1968,6 @@ impl Viewer {
 
     /// The mods' categories (`native_recipe_categories`): their tabs join the
     /// stations', and the tooltips count their recipes.
-    // For the Horizon hook mods will declare categories through; until it
-    // exists only the tests call this.
-    #[allow(dead_code)]
     pub fn set_categories(&mut self, categories: Vec<Category>) {
         self.counts = count_recipes(&self.recipes);
         for category in &categories {
@@ -2507,7 +2506,7 @@ impl Session {
 mod tests {
     #[test]
     fn title_has_name_and_version() {
-        assert_eq!(super::title(), "JEI 0.4.1");
+        assert_eq!(super::title(), "JEI 0.5.0");
     }
 
     #[test]
@@ -3151,6 +3150,7 @@ mod tests {
             title: "Void Fishing".into(),
             subtitle: "It bites.".into(),
             icon: stack("minecraft:furnace"),
+            layout: super::Layout::Chance,
             catalysts: vec![stack("minecraft:furnace")],
             recipes: vec![super::ChanceRecipe {
                 inputs: Vec::new(),

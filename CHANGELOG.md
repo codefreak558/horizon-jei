@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0 — 2026-11-22
+
+- **An add-on API.** Another mod can give JEI a category of its own: `jei::register_category(id, title,
+  icon_item, layout)`, `jei::set_chance_recipes(category_id, Vec<ChanceRecipe>)` and
+  `jei::clear_category(category_id)`, all client side, plain owned types, safe under any call order (before or
+  after the viewer is built, from any client hook). Declare `jei = { version = "^0.5", optional = true }`
+  under `[dependencies]` and guard the calls with `mod_api::if_installed!`. See
+  [`docs/addon-api.md`](docs/addon-api.md).
+- The categories show as tabs after the stations: R over an item lists the recipes whose outputs contain it,
+  U those whose inputs (or catalysts) do. A chance output shows its percentage under the slot, and its
+  tooltip the chance, the count range and the notes.
+
 ## 0.4.1 — 2026-11-22
 
 - **The wheel turns the item list's pages.** Scrolling over JEI's item list goes to the next or previous

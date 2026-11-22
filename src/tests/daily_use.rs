@@ -1059,6 +1059,7 @@ fn test_mod_category_and_machine_catalyst_integration() {
         id: "ae2:inscriber".into(),
         title: "Inscriber".into(),
         subtitle: "ae2:inscriber".into(),
+        layout: Layout::Chance,
         icon: Stack::item("ae2:inscriber"),
         catalysts: vec![Stack::item("ae2:inscriber")],
         recipes: vec![ChanceRecipe {
