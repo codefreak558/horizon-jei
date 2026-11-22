@@ -172,7 +172,10 @@ mod tests {
         set_chance_recipes("a", vec![drop_of("minecraft:emerald", 1.0)]);
         let (_, cats) = snapshot();
         assert_eq!(cats[0].recipes.len(), 1);
-        assert_eq!(cats[0].recipes[0].outputs[0].stack.item, "minecraft:emerald");
+        assert_eq!(
+            cats[0].recipes[0].outputs[0].stack.item,
+            "minecraft:emerald"
+        );
         clear_category("a");
         assert!(snapshot().1.is_empty());
         set_chance_recipes("a", vec![drop_of("minecraft:diamond", 1.0)]);
