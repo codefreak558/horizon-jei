@@ -183,6 +183,15 @@ impl State {
         self.viewer()
             .map_or_else(|| id.to_owned(), |v| v.item_name(id))
     }
+
+    /// The name of the mod an item comes from; none until the world's tables are read.
+    fn mod_name(&self, key: ItemKey) -> Option<String> {
+        let id = self.tables.id(key)?;
+        Some(self.viewer().map_or_else(
+            || jei::mod_name(id, &crate::native_route::mod_names()),
+            |v| v.mod_name(id),
+        ))
+    }
 }
 
 static STATE: LazyLock<Mutex<State>> = LazyLock::new(|| Mutex::new(State::new()));
@@ -630,7 +639,8 @@ pub(crate) fn sync(host: &mut dyn ClientHost) {
     let recipes = jei::dedupe_recipes(recipes);
     let none = recipes.is_empty();
     let lang = lang(host);
-    let (mut viewer, mut out) = Viewer::with_variants(items, recipes, found, lang);
+    let (mut viewer, _) = Viewer::with_variants(items, recipes, found, lang);
+    let mut out = viewer.set_mod_names(crate::native_route::mod_names());
     let sort = st().config.sort;
     if sort != viewer.sort() {
         out = viewer.set_sort(sort);
@@ -1063,6 +1073,20 @@ pub(crate) fn screen_render_post(
     let _ = draw.gui_tooltip(&lines, screen.mouse);
 }
 
+/// The mod line JEI ends every item tooltip with: the mod's name, blue and italic.
+pub(crate) fn item_tooltip(host: &dyn ClientHost, stack: &ItemStack, lines: &mut Vec<(Text, u32)>) {
+    if !host.on(jei::ID) {
+        return;
+    }
+    let Some(name) = st().mod_name(stack.item()) else {
+        return;
+    };
+    let line = host
+        .text_from_legacy(&format!("§9§o{name}"))
+        .unwrap_or_else(|_| Text::literal(&name));
+    lines.push((line, u32::MAX));
+}
+
 /// A line in an RGB colour, as a legacy `§` code would give it (the nearest of the sixteen).
 fn colored(host: &dyn ClientHost, text: &str, [r, g, b]: [u8; 3]) -> Text {
     let code = match (r, g, b) {
@@ -1231,7 +1255,7 @@ fn overlay_pressed(screen: &ScreenView<'_>, button: i32, modifiers: u32) -> bool
     true
 }
 
-/// The wheel over the recipe screen turns its pages.
+/// The wheel over the recipe screen turns its pages, and over the item list the list's.
 pub(crate) fn mouse_scrolled(
     host: &dyn ClientHost,
     screen: &ScreenView<'_>,
@@ -1243,7 +1267,8 @@ pub(crate) fn mouse_scrolled(
     let mut state = st();
     let gui = state.gui;
     let Some(o) = state.overlay.as_mut() else {
-        return false;
+        drop(state);
+        return crate::native_route::panel_scroll(screen.mouse, scroll[1]);
     };
     if window::hit(o, gui, screen.mouse).is_none() {
         return false;

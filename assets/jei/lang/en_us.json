@@ -7,6 +7,7 @@
   "jei.setting.bookmarks": "Bookmark bar",
   "jei.setting.bookmarks.tooltip": "The bar of bookmarked items at the top left of container screens.",
   "jei.setting.sort": "Item order",
+  "jei.setting.sort.mod": "Mod",
   "jei.setting.sort.name": "Name",
   "jei.setting.sort.id": "ID",
   "jei.setting.language": "Language",
