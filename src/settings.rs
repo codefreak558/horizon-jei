@@ -68,7 +68,11 @@ fn sort_choice(sort: Sort) -> &'static str {
 pub(crate) fn show(host: &dyn ClientHost, config: Config) {
     host.set_setting(jei::ID, "bookmarks", flag(config.bookmarks));
     host.set_setting(jei::ID, "sort", sort_choice(config.sort));
-    host.set_setting(jei::ID, "navigation", if config.scrolling { "1" } else { "0" });
+    host.set_setting(
+        jei::ID,
+        "navigation",
+        if config.scrolling { "1" } else { "0" },
+    );
 }
 
 /// A setting changed on the page: the file follows, and a new order shows at once.

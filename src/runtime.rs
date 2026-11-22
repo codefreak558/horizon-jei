@@ -3627,9 +3627,12 @@ mod tests {
         assert_eq!(shown, 40);
         // Every output's slot lies inside the content.
         for page in &pages {
-            for (n, at) in
-                screen::layout(std::slice::from_ref(&view), page, g.content, screen::Nav::PAGED)
-            {
+            for (n, at) in screen::layout(
+                std::slice::from_ref(&view),
+                page,
+                g.content,
+                screen::Nav::PAGED,
+            ) {
                 let placed = screen::place(&view, &page[n], at, g.content[2]);
                 for (_, r) in placed.slots {
                     assert!(
@@ -3641,8 +3644,14 @@ mod tests {
             }
         }
         // JEI's window is as tall as the screen less 58, up to 350.
-        assert_eq!(screen::geom([427.0, 680.0], 1, 0, 1, [198.0, 350.0], false).panel[3], 350.0);
-        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 1, [198.0, 350.0], false).panel[3], 182.0);
+        assert_eq!(
+            screen::geom([427.0, 680.0], 1, 0, 1, [198.0, 350.0], false).panel[3],
+            350.0
+        );
+        assert_eq!(
+            screen::geom([427.0, 240.0], 1, 0, 1, [198.0, 350.0], false).panel[3],
+            182.0
+        );
     }
 
     #[test]
@@ -3730,7 +3739,10 @@ mod tests {
         use super::screen;
         let area = [100.0, 50.0, 14.0, 102.0];
         // Nothing hidden: the marker fills the track.
-        assert_eq!(screen::marker(area, 100.0, 0.0, 0.0), [101.0, 51.0, 12.0, 100.0]);
+        assert_eq!(
+            screen::marker(area, 100.0, 0.0, 0.0),
+            [101.0, 51.0, 12.0, 100.0]
+        );
         // Half hidden: half the track, and at the end it sits at the bottom.
         let top = screen::marker(area, 100.0, 100.0, 0.0);
         assert_eq!((top[1], top[3]), (51.0, 50.0));
@@ -3753,15 +3765,24 @@ mod tests {
         let (min, max) = ([198.0, 175.0], [415.0, 350.0]);
         let at = |edge, to| screen::resized([198.0, 300.0], edge, [100.0, 100.0], to, min, max);
         // The right edge 10 px out widens it by 20; the left edge 10 px out does the same.
-        assert_eq!(at([false, true, false, false], [110.0, 100.0]), [218.0, 300.0]);
-        assert_eq!(at([true, false, false, false], [90.0, 100.0]), [218.0, 300.0]);
+        assert_eq!(
+            at([false, true, false, false], [110.0, 100.0]),
+            [218.0, 300.0]
+        );
+        assert_eq!(
+            at([true, false, false, false], [90.0, 100.0]),
+            [218.0, 300.0]
+        );
         // The bottom edge down grows its height, up shrinks it; both stay within the limits.
         assert_eq!(at([false, false, false, true], [100.0, 90.0])[1], 280.0);
         assert_eq!(at([false, false, false, true], [100.0, 500.0])[1], 350.0);
         assert_eq!(at([false, false, false, true], [100.0, -500.0])[1], 175.0);
         assert_eq!(at([false, true, false, false], [-500.0, 100.0])[0], 198.0);
         // A corner moves both; an untouched axis keeps its size.
-        assert_eq!(at([false, true, false, true], [105.0, 105.0]), [208.0, 310.0]);
+        assert_eq!(
+            at([false, true, false, true], [105.0, 105.0]),
+            [208.0, 310.0]
+        );
         assert_eq!(at([false, true, false, false], [105.0, 500.0])[1], 300.0);
     }
 
@@ -3771,9 +3792,16 @@ mod tests {
         let wide = screen::geom([427.0, 240.0], 1, 0, 0, [300.0, 350.0], false);
         assert_eq!(wide.panel[2], 300.0);
         // Never narrower than 198, never wider than the screen less 12.
-        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 0, [50.0, 0.0], false).panel[2], 198.0);
-        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 0, [999.0, 0.0], false).panel[2], 415.0);
-        let config = super::Config::parse("recipe_width=250\nrecipe_height=10\nnavigation=scrolling\n");
+        assert_eq!(
+            screen::geom([427.0, 240.0], 1, 0, 0, [50.0, 0.0], false).panel[2],
+            198.0
+        );
+        assert_eq!(
+            screen::geom([427.0, 240.0], 1, 0, 0, [999.0, 0.0], false).panel[2],
+            415.0
+        );
+        let config =
+            super::Config::parse("recipe_width=250\nrecipe_height=10\nnavigation=scrolling\n");
         assert_eq!((config.recipe_width, config.recipe_height), (250, 175));
         assert!(config.scrolling);
         assert_eq!(super::Config::parse(&config.to_text()), config);
