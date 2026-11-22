@@ -68,9 +68,13 @@ your inventory.
 
 Releases of 0.1–0.3 were signed with minisign. The public key is
 [`horizon-jei.pub`](horizon-jei.pub) (key id `FC3386F1F51ECF6A`). The private key
-is not in the repository. The release flow for the SDK port (a source `.hmod`
-with `[native]`) has not been written up yet; see
-[`docs/publish.md`](docs/publish.md).
+is not in the repository.
+
+From 0.4.0 a release is made by the `release` workflow (Actions, Run workflow,
+tag `vX.Y.Z` matching `horizon-mod.toml`'s version, or a pushed `v*` tag). It
+tests the crate, packs `jei.hmod` with `cargo horizon-mod build`, runs
+`cargo horizon-mod check` on it, and publishes a GitHub release with the package,
+its SHA-256 and the version's CHANGELOG section. The package is unsigned.
 
 ## Develop
 
