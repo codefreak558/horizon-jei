@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-11-22
+
+- **The recipe window follows JEI 26.3's geometry.** It is 198 wide and as tall as the screen less 58 (175 to
+  350), no longer shrinking to its recipes. Tabs are 24 px, drawn over the window's top edge with the icon
+  centred. The title and page bands are translucent dark fills with white shadowed text, the arrows sit 6 px
+  from the edge, and the catalysts are one tab panel of 16 px slots overlapping the window by 6 px.
+
 ## 0.5.0 — 2026-11-22
 
 - **An add-on API.** Another mod can give JEI a category of its own: `jei::register_category(id, title,

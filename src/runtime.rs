@@ -6,7 +6,7 @@
 /// settings and keys.
 pub const ID: &str = "jei";
 pub const NAME: &str = "JEI";
-pub const VERSION: &str = "0.5.0";
+pub const VERSION: &str = "0.5.1";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
 
 /// The Horizon build the mod is made for (horizon-mod.toml's `[native]`).
@@ -2132,7 +2132,7 @@ pub mod screen {
     use super::{Layout, View};
 
     pub const SLOT: f32 = 18.0;
-    pub const TAB: [f32; 2] = [24.0, 22.0];
+    pub const TAB: [f32; 2] = [24.0, 24.0];
     /// One output of a category recipe: the slot and two short lines.
     pub const CHANCE: [f32; 2] = [52.0, 20.0];
     /// Between two recipes of a page (their backgrounds keep `PAD` of it each).
@@ -2164,107 +2164,59 @@ pub mod screen {
         pub catalysts: Vec<[f32; 4]>,
     }
 
+    /// JEI's window: 198 wide, as tall as the screen less 58 (175 to 350), the tabs 21 above it.
     pub fn geom(gui: [f32; 2], tabs: usize, selected: usize, catalysts: usize) -> Geom {
-        let width = 196.0f32.min(gui[0] - 56.0).max(120.0);
+        let width = 198.0f32.min(gui[0] - 12.0).max(120.0);
         let x = ((gui[0] - width) / 2.0).floor();
-        let y = 4.0 + TAB[1];
-        let height = (gui[1] - y - 6.0).clamp(80.0, 300.0);
-        let fit = ((width / TAB[0]).floor() as usize).max(1);
+        let full = (gui[1] - 58.0).max(175.0);
+        let height = full.min(350.0);
+        let y = TAB[1] + 21.0 + ((full - height) / 2.0).floor();
+        let fit = (((width - 4.0) / TAB[0]).floor() as usize).max(1);
         let first = selected
             .saturating_sub(fit / 2)
             .min(tabs.saturating_sub(fit));
         let shown_tabs = (first..tabs.min(first + fit))
             .enumerate()
-            .map(|(n, i)| (i, [x + n as f32 * TAB[0], 4.0, TAB[0], TAB[1]]))
+            .map(|(n, i)| (i, [x + 2.0 + n as f32 * TAB[0], y - 21.0, TAB[0], TAB[1]]))
             .collect();
-        let fits = (((height - 10.0) / SLOT).floor() as usize).max(1);
-        let shown = catalysts.min(fits);
-        let catalyst_panel = [x - 24.0, y + 4.0, 24.0, 6.0 + shown as f32 * SLOT];
+        // The catalysts' tab: 16 px slots in columns, 5 px of border, overlapping the window by 6.
+        let (catalyst_panel, catalyst_slots) = if catalysts == 0 {
+            ([0.0; 4], Vec::new())
+        } else {
+            let n = catalysts as f32;
+            let per = (((height - 8.0 - 12.0) / 16.0).floor()).max(1.0);
+            let columns = (n / per).ceil();
+            let per = (n / columns).ceil();
+            let w = 12.0 + columns * 16.0;
+            let h = 12.0 + per * 16.0;
+            let (left, top) = (x - w + 6.0, y);
+            let slots = (0..catalysts)
+                .map(|i| {
+                    let (c, r) = ((i as f32 / per).floor(), (i as f32 % per));
+                    [left + 6.0 + c * 16.0, top + 6.0 + r * 16.0, 16.0, 16.0]
+                })
+                .collect();
+            ([left, top, w, h], slots)
+        };
         Geom {
             panel: [x, y, width, height],
             tabs: shown_tabs,
-            prev_tab: [x + 5.0, y + 5.0, 13.0, 13.0],
-            next_tab: [x + width - 18.0, y + 5.0, 13.0, 13.0],
-            title: [x + width / 2.0, y + 8.0],
-            title_bar: [x + 20.0, y + 5.0, width - 40.0, 13.0],
-            prev_page: [x + 5.0, y + 21.0, 13.0, 13.0],
-            next_page: [x + width - 18.0, y + 21.0, 13.0, 13.0],
-            page_text: [x + width / 2.0, y + 24.0],
-            page_bar: [x + 20.0, y + 21.0, width - 40.0, 13.0],
+            prev_tab: [x + 6.0, y + 4.0, 13.0, 13.0],
+            next_tab: [x + width - 19.0, y + 4.0, 13.0, 13.0],
+            title: [x + width / 2.0, y + 6.0],
+            title_bar: [x + 19.0, y + 4.0, width - 38.0, 13.0],
+            page_bar: [x + 19.0, y + 19.0, width - 38.0, 13.0],
+            prev_page: [x + 6.0, y + 19.0, 13.0, 13.0],
+            next_page: [x + width - 19.0, y + 19.0, 13.0, 13.0],
+            page_text: [x + width / 2.0, y + 21.0],
             content: [
                 x + 6.0 + PAD,
-                y + 38.0 + PAD,
+                y + 34.0 + PAD,
                 width - 12.0 - 2.0 * PAD,
-                height - 44.0 - 2.0 * PAD,
+                height - 40.0 - 2.0 * PAD,
             ],
             catalyst_panel,
-            catalysts: (0..shown)
-                .map(|i| [x - 21.0, y + 7.0 + i as f32 * SLOT, SLOT, SLOT])
-                .collect(),
-        }
-    }
-
-    /// The window as tall as its tallest page needs (and the catalysts'
-    /// column), not taller than the GUI lets it be.
-    pub fn fitted(
-        gui: [f32; 2],
-        tabs: usize,
-        selected: usize,
-        catalysts: usize,
-        views: &[View],
-    ) -> Geom {
-        let mut g = geom(gui, tabs, selected, catalysts);
-        let chrome = g.panel[3] - g.content[3];
-        let tallest = pages(views, g.content)
-            .iter()
-            .map(|page| {
-                let heights = page
-                    .iter()
-                    .map(|p| size(&views[p.view], p, g.content[2])[1]);
-                heights.sum::<f32>() + GAP * page.len().saturating_sub(1) as f32
-            })
-            .fold(0.0f32, f32::max);
-        let height = (tallest + chrome)
-            .max(g.catalyst_panel[3] + 8.0)
-            .max(80.0)
-            .min(g.panel[3])
-            .ceil();
-        g.panel[3] = height;
-        g.content[3] = height - chrome;
-        // Centred on the screen's height, the tabs above it, as JEI's window.
-        let top = ((gui[1] - TAB[1] - height) / 2.0).floor().max(4.0);
-        g.translate(0.0, top - 4.0);
-        g
-    }
-
-    impl Geom {
-        /// Every part moved by `dx`, `dy`.
-        fn translate(&mut self, dx: f32, dy: f32) {
-            let r = |r: &mut [f32; 4]| {
-                r[0] += dx;
-                r[1] += dy;
-            };
-            let p = |p: &mut [f32; 2]| {
-                p[0] += dx;
-                p[1] += dy;
-            };
-            for rect in [
-                &mut self.panel,
-                &mut self.prev_tab,
-                &mut self.next_tab,
-                &mut self.title_bar,
-                &mut self.prev_page,
-                &mut self.next_page,
-                &mut self.page_bar,
-                &mut self.content,
-                &mut self.catalyst_panel,
-            ] {
-                r(rect);
-            }
-            self.tabs.iter_mut().for_each(|(_, t)| r(t));
-            self.catalysts.iter_mut().for_each(r);
-            p(&mut self.title);
-            p(&mut self.page_text);
+            catalysts: catalyst_slots,
         }
     }
 
@@ -2506,7 +2458,7 @@ impl Session {
 mod tests {
     #[test]
     fn title_has_name_and_version() {
-        assert_eq!(super::title(), "JEI 0.5.0");
+        assert_eq!(super::title(), "JEI 0.5.1");
     }
 
     #[test]
@@ -3378,8 +3330,9 @@ mod tests {
                 }
             }
         }
-        let fitted = screen::fitted([427.0, 680.0], 1, 0, 1, std::slice::from_ref(&view));
-        assert!(fitted.panel[3] < 300.0);
+        // JEI's window is as tall as the screen less 58, up to 350.
+        assert_eq!(screen::geom([427.0, 680.0], 1, 0, 1).panel[3], 350.0);
+        assert_eq!(screen::geom([427.0, 240.0], 1, 0, 1).panel[3], 182.0);
     }
 
     #[test]
