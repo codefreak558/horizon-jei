@@ -37,7 +37,7 @@ the mod first needs them (a world opens, or the settings page opens).
 | `hints` | `true` / `false` | `true` | Read and written back for 0.3's files; 0.4 shows no tooltip lines, so it does nothing. |
 | `bookmarks` | `true` / `false` | `true` | Draws the bookmark bar over container screens. Turning it off keeps the bookmarks and still bookmarks the stack the A key points at. |
 | `recipes` | `screen` / `panel` | `screen` | 0.3's choice of the docked view. Read and kept; 0.4 always uses JEI's recipe screen. |
-| `recipe_width`, `recipe_height` | numbers, at least 198 and 175 | `198`, `350` | The recipe window's size, written when an edge drag ends. The window is never wider than the screen less 12 nor taller than it less 58. |
+| `recipe_width`, `recipe_height` | numbers, at least 198 and 175 | `198`, `350` | The recipe window's size, written when an edge drag ends. The window is never wider than the screen less 12 nor taller than it less 76. |
 | `navigation` | `paged` / `scrolling` | `paged` | Recipes turn pages, or scroll under a scrollbar. The settings page's "Recipe navigation" choice changes it. |
 
 Unknown keys and unknown values are ignored: an option the file names badly keeps its default.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 — 2026-11-23
+
+- **The wheel works beside an open recipe.** With the recipe window open, the wheel over the item list
+  turned nothing; it turns the list's pages again.
+- **The recipe window clears the search box.** It is as tall as the screen less 76 (it was 58), so its
+  bottom no longer covers the panel's search box under the screen.
+
 ## 0.6.0 — 2026-11-22
 
 - **Resize the recipe window.** Drag its edges or corners (5 px, as JEI's); it is centred, so each pixel
