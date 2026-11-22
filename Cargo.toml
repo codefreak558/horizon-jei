@@ -1,7 +1,7 @@
 [package]
 # Cargo's name is not the mod's identity (horizon-mod.toml's `id` is); `jei` keeps the library name.
 name = "jei"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2024"
 license = "MIT"
 publish = false

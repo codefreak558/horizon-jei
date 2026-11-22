@@ -6,7 +6,7 @@
 /// settings and keys.
 pub const ID: &str = "jei";
 pub const NAME: &str = "JEI";
-pub const VERSION: &str = "0.5.1";
+pub const VERSION: &str = "0.5.2";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
 
 /// The Horizon build the mod is made for (horizon-mod.toml's `[native]`).
@@ -2251,6 +2251,91 @@ pub mod screen {
         ((content_width / CHANCE[0]).floor() as usize).max(1)
     }
 
+    /// JEI's recipe grid: the recipes of a page in rows and (up to two) columns of equal cells, each cell a
+    /// recipe and its background.
+    struct Grid {
+        columns: usize,
+        rows: usize,
+        /// A cell: the biggest recipe's block and its background's margins.
+        cell: [f32; 2],
+        /// What the "+" of a recipe takes beside its background.
+        buttons: f32,
+    }
+
+    /// The gap JEI keeps between recipe cells.
+    const CELL_GAP: f32 = 4.0;
+
+    /// The grid of the category, or none for one with chance outputs, which fills its page its own way.
+    fn grid(views: &[View], content: [f32; 4]) -> Option<Grid> {
+        if views.is_empty() || views.iter().any(|v| v.layout == Layout::Chance) {
+            return None;
+        }
+        let mut cell = [0.0f32; 2];
+        for (view, v) in views.iter().enumerate() {
+            let piece = Piece {
+                view,
+                outputs: 0..v.chances.len(),
+            };
+            let [w, h] = size(v, &piece, content[2]);
+            cell = [cell[0].max(w), cell[1].max(h)];
+        }
+        let cell = [cell[0] + 2.0 * PAD, cell[1] + 2.0 * PAD];
+        let buttons = if views.iter().any(|v| v.action.is_some()) {
+            BUTTON + 2.0
+        } else {
+            0.0
+        };
+        let area = [content[2] + 2.0 * PAD, content[3] + 2.0 * PAD];
+        let columns =
+            (((area[0] + CELL_GAP) / (cell[0] + buttons + CELL_GAP)).floor() as usize).clamp(1, 2);
+        let rows = (((area[1] + CELL_GAP) / (cell[1] + CELL_GAP)).floor() as usize).max(1);
+        Some(Grid {
+            columns,
+            rows,
+            cell,
+            buttons,
+        })
+    }
+
+    /// Each recipe's block on a grid page: columns centred in their share of the width, rows spaced evenly
+    /// down the height, as JEI's `RecipeGuiGrid`.
+    fn grid_layout(
+        views: &[View],
+        page: &[Piece],
+        content: [f32; 4],
+        grid: &Grid,
+    ) -> Vec<(usize, [f32; 2])> {
+        let area = [
+            content[0] - PAD,
+            content[1] - PAD,
+            content[2] + 2.0 * PAD,
+            content[3] + 2.0 * PAD,
+        ];
+        let columns = grid.columns as f32;
+        let column_w = ((area[2] - (columns - 1.0) * CELL_GAP) / columns).floor();
+        let height = area[3].max(grid.cell[1]);
+        let spacing =
+            ((height - grid.rows as f32 * grid.cell[1]) / (grid.rows as f32 + 1.0)).floor();
+        page.iter()
+            .enumerate()
+            .map(|(n, piece)| {
+                let (col, row) = ((n % grid.columns) as f32, (n / grid.columns) as f32);
+                let column_x = area[0] + col * (column_w + CELL_GAP);
+                // The recipe's own background, centred in its cell (a smaller one among bigger ones).
+                let [w, h] = size(&views[piece.view], piece, content[2]);
+                let (bw, bh) = (w + 2.0 * PAD, h + 2.0 * PAD);
+                let x = if column_w > bw + 2.0 * grid.buttons {
+                    column_x + ((column_w - bw) / 2.0).floor()
+                } else {
+                    column_x + ((column_w - bw - grid.buttons) / 2.0).floor()
+                };
+                let top = area[1] + spacing + row * (grid.cell[1] + spacing);
+                let y = top + ((grid.cell[1] - bh) / 2.0).floor();
+                (n, [x + PAD, y + PAD])
+            })
+            .collect()
+    }
+
     /// The size of a piece's block.
     pub fn size(view: &View, piece: &Piece, content_width: f32) -> [f32; 2] {
         let notes = note_lines(view) as f32 * LINE;
@@ -2279,6 +2364,21 @@ pub mod screen {
     /// The pieces, page by page: as many recipes as fit the content's
     /// height; a category recipe too tall for a page goes on over pages.
     pub fn pages(views: &[View], content: [f32; 4]) -> Vec<Vec<Piece>> {
+        if let Some(grid) = grid(views, content) {
+            let all: Vec<usize> = (0..views.len()).collect();
+            return all
+                .chunks(grid.columns * grid.rows)
+                .map(|chunk| {
+                    chunk
+                        .iter()
+                        .map(|&view| Piece {
+                            view,
+                            outputs: 0..views[view].chances.len(),
+                        })
+                        .collect()
+                })
+                .collect();
+        }
         let mut pieces = Vec::new();
         for (index, view) in views.iter().enumerate() {
             let count = view.chances.len();
@@ -2397,6 +2497,9 @@ pub mod screen {
 
     /// A page's pieces with the top left of each, centred across the content.
     pub fn layout(views: &[View], page: &[Piece], content: [f32; 4]) -> Vec<(usize, [f32; 2])> {
+        if let Some(grid) = grid(views, content) {
+            return grid_layout(views, page, content, &grid);
+        }
         let mut y = content[1];
         page.iter()
             .enumerate()
@@ -2458,7 +2561,7 @@ impl Session {
 mod tests {
     #[test]
     fn title_has_name_and_version() {
-        assert_eq!(super::title(), "JEI 0.5.1");
+        assert_eq!(super::title(), "JEI 0.5.2");
     }
 
     #[test]
@@ -3333,6 +3436,40 @@ mod tests {
         // JEI's window is as tall as the screen less 58, up to 350.
         assert_eq!(screen::geom([427.0, 680.0], 1, 0, 1).panel[3], 350.0);
         assert_eq!(screen::geom([427.0, 240.0], 1, 0, 1).panel[3], 182.0);
+    }
+
+    #[test]
+    fn screen_grid_has_two_columns_for_small_recipes() {
+        use super::screen;
+        let view = |layout, width, height| super::View {
+            layout,
+            width,
+            height,
+            slots: vec![Vec::new(); (width * height) as usize],
+            results: Vec::new(),
+            note: String::new(),
+            action: None,
+            chances: Vec::new(),
+        };
+        let g = screen::geom([427.0, 240.0], 1, 0, 0);
+        // A smelting recipe (90 wide with its background) fits twice across the window.
+        let smelting: Vec<_> = (0..6).map(|_| view(super::Layout::Cooking, 1, 1)).collect();
+        let pages = screen::pages(&smelting, g.content);
+        assert!(pages[0].len() >= 2, "{pages:?}");
+        let at = screen::layout(&smelting, &pages[0], g.content);
+        assert!(at[1].1[0] > at[0].1[0] + 40.0, "{at:?}");
+        assert_eq!(at[0].1[1], at[1].1[1], "{at:?}");
+        // A crafting recipe (116 wide) takes the whole width: one column.
+        let crafting: Vec<_> = (0..3).map(|_| view(super::Layout::Grid, 3, 3)).collect();
+        let pages = screen::pages(&crafting, g.content);
+        let at = screen::layout(&crafting, &pages[0], g.content);
+        assert!(at.len() < 2 || at[1].1[1] > at[0].1[1], "{at:?}");
+        // Everything lies inside the content.
+        for (n, p) in at {
+            let [w, h] = screen::size(&crafting[pages[0][n].view], &pages[0][n], g.content[2]);
+            assert!(p[0] >= g.content[0] && p[0] + w <= g.content[0] + g.content[2] + 0.5);
+            assert!(p[1] >= g.content[1] && p[1] + h <= g.content[1] + g.content[3] + 0.5);
+        }
     }
 
     #[test]
