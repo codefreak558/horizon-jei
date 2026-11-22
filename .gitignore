@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 # The signing key never enters the repository; the public half does.
 *.key
+# The pinned SDK, fetched by `cargo horizon-mod` (or by hand from the sdk-<commit> release).
+/.horizon/
