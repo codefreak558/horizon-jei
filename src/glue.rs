@@ -71,6 +71,9 @@ pub(crate) struct State {
 pub(crate) struct Tables {
     keys: HashMap<String, ItemKey>,
     ids: HashMap<ItemKey, String>,
+    /// The game's id of each crafting recipe. The viewer's `book_id` of a crafting recipe is its index here:
+    /// the recipe book knows only unlocked recipes, so the book's own id is asked when "+" is pressed.
+    recipe_ids: Vec<String>,
 }
 
 impl Tables {
@@ -275,7 +278,8 @@ fn read_tables(host: &mut dyn ClientHost) -> (Tables, Vec<Item>, Vec<Recipe>) {
             tags_named(&r.json, &mut named);
             if let Some(mut recipe) = convert(r, &index, &tables) {
                 if recipe.kind.station() == jei::Station::Crafting {
-                    recipe.book_id = host.recipe_book_ids(&r.id).first().copied().unwrap_or(-1);
+                    recipe.book_id = tables.recipe_ids.len() as i32;
+                    tables.recipe_ids.push(r.id.clone());
                 }
                 recipes.push(recipe);
             }
@@ -803,13 +807,18 @@ fn apply(host: &mut dyn ClientHost, out: Out) -> Result<(), String> {
             let key = st().tables.key(&item).ok_or_else(|| format!("unknown item {item}"))?;
             host.give(key, count)
         }
-        Out::Transfer { book_id, all } => {
-            // "+" moves the ingredients with no recipe-book unlock (JEI's transfer); with Shift, as many sets as
-            // the items allow, through the recipe book's own placing.
-            if all && host.place_recipe(book_id, true).is_ok() {
+        Out::Transfer { book_id: index, all } => {
+            let id = st().tables.recipe_ids.get(index.max(0) as usize).cloned();
+            let book = id.and_then(|id| host.recipe_book_ids(&id).first().copied());
+            let Some(book) = book else {
+                return Err(lang(host).not_in_book().to_owned());
+            };
+            // "+" moves the ingredients (JEI's transfer); with Shift, as many sets as the items allow, through
+            // the recipe book's own placing.
+            if all && host.place_recipe(book, true).is_ok() {
                 return Ok(());
             }
-            host.transfer_recipe(book_id);
+            host.transfer_recipe(book);
             Ok(())
         }
         Out::Say(text) => {

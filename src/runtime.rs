@@ -212,6 +212,14 @@ impl Lang {
         }
     }
 
+    /// "+" on a recipe the player's recipe book doesn't have yet (the game moves only unlocked ones).
+    pub fn not_in_book(self) -> &'static str {
+        match self {
+            Lang::En => "That recipe isn't unlocked in your recipe book yet",
+            Lang::Es => "Esa receta aún no está desbloqueada en tu libro de recetas",
+        }
+    }
+
     pub fn page_of(self, page: usize, pages: usize) -> String {
         format!("{}/{}", page + 1, pages.max(1))
     }
