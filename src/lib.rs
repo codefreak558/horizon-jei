@@ -22,9 +22,9 @@ pub use settings::{COMMANDS, settings};
 
 use mod_api::{
     ClientHost, ClientTickPostEvent, CommandEvent, Flow, GuiRenderPostEvent, Hooks,
-    ItemTooltipEvent, KeyRegistration, PanelEventEvent, RecipesReceivedEvent, RegisterClientCommandsEvent, Registrar,
-    RegistrationContext, ScreenClosingEvent, ScreenKeyPressedPreEvent,
-    ScreenMouseButtonPressedPreEvent, ScreenMouseButtonReleasedPreEvent,
+    ItemTooltipEvent, KeyRegistration, PanelEventEvent, RecipesReceivedEvent,
+    RegisterClientCommandsEvent, Registrar, RegistrationContext, ScreenClosingEvent,
+    ScreenKeyPressedPreEvent, ScreenMouseButtonPressedPreEvent, ScreenMouseButtonReleasedPreEvent,
     ScreenMouseDraggedPreEvent, ScreenMouseScrolledPreEvent, ScreenRenderPostEvent,
     SettingChangedEvent,
 };

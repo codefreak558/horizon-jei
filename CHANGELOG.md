@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 — 2026-11-22
 
 - **The wheel turns the item list's pages.** Scrolling over JEI's item list goes to the next or previous
   page, as JEI's does; the game's panel read no wheel there. A `HEAD` mixin on the list's draw
