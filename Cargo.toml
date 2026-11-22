@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 # The pinned SDK's API crate, fetched into .horizon/sdk/ (see docs/dev.md).
 horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }
+log = "0.4"
 serde_json = "1"
 
 # The SDK build this mod is made for.
