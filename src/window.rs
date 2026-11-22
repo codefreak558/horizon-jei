@@ -38,7 +38,7 @@ const SPRITES: &str = "jei:gui/sprites/";
 
 /// The recipe screen's parts now, from the GUI's size.
 fn geom(o: &Overlay, gui: [f32; 2]) -> geo::Geom {
-    geo::fitted(gui, o.tabs.len(), o.tab, o.catalysts.len(), &o.views)
+    geo::geom(gui, o.tabs.len(), o.tab, o.catalysts.len())
 }
 
 /// The window's width, for the item list to lay out beside it.
@@ -208,7 +208,7 @@ impl Painter<'_> {
     /// The recipe window: JEI's beveled grey panel.
     fn frame(&mut self, r: [f32; 4]) {
         let [x, y, w, h] = r;
-        if self.nine("gui_background", [x - 1.0, y - 1.0, w + 2.0, h + 2.0], 4.0) {
+        if self.nine("gui_background", r, 4.0) {
             return;
         }
         let d = &mut *self.draw;
@@ -220,15 +220,9 @@ impl Painter<'_> {
         d.fill([x + w - 1.0, y + 1.0, 1.0, h - 1.0], PANEL_DARK);
     }
 
-    /// A recessed bar, as JEI's category and page lines.
+    /// JEI's category and page lines: a translucent dark band between the arrows.
     fn bar(&mut self, r: [f32; 4]) {
-        let [x, y, w, h] = r;
-        let d = &mut *self.draw;
-        d.fill(r, SLOT_BG);
-        d.fill([x, y, w - 1.0, 1.0], SLOT_DARK);
-        d.fill([x, y, 1.0, h - 1.0], SLOT_DARK);
-        d.fill([x + 1.0, y + h - 1.0, w - 1.0, 1.0], PANEL_LIGHT);
-        d.fill([x + w - 1.0, y + 1.0, 1.0, h - 1.0], PANEL_LIGHT);
+        self.draw.fill(r, 0x30_00_00_00);
     }
 
     /// The light rounded box JEI draws behind each recipe.
@@ -319,40 +313,30 @@ impl Painter<'_> {
         }
         let w = self.draw.text_width(&text);
         self.draw
-            .text(&text, [(x - w / 2.0).round(), y], argb, false);
+            .text(&text, [(x - w / 2.0).round(), y], argb, true);
     }
 
+    /// A tab: JEI's 24 px sprite, the category's icon centred on it.
     fn tab(&mut self, o: &Overlay, i: usize, rect: [f32; 4]) {
-        let selected = i == o.tab;
-        let r = if selected {
-            [rect[0], rect[1], rect[2] - 1.0, rect[3] + 3.0]
-        } else {
-            [rect[0], rect[1] + 2.0, rect[2] - 1.0, rect[3] - 2.0]
-        };
-        let sprite = if selected {
+        let sprite = if i == o.tab {
             "tab_selected"
         } else {
             "tab_unselected"
         };
-        if self.nine(sprite, r, 4.0) {
-            if selected {
-                self.draw
-                    .fill([r[0] + 3.0, r[1] + r[3] - 5.0, r[2] - 6.0, 5.0], PANEL_BG);
-            }
-        } else {
-            self.frame(r);
-            if !selected {
-                self.draw.fill(r, 0x30_00_00_00);
+        if !self.nine(sprite, rect, 4.0) {
+            self.frame(rect);
+            if i != o.tab {
+                self.draw.fill(rect, 0x30_00_00_00);
             }
         }
         if let Some(icon) = o.tabs.get(i) {
-            let top = if selected { r[1] + 3.0 } else { r[1] + 2.0 };
-            self.stack(icon, [r[0] + 3.0, top, 18.0, 18.0]);
+            // `stack` insets by one: a 16 px icon centred on the 24 px tab starts 4 px in.
+            self.stack(icon, [rect[0] + 3.0, rect[1] + 3.0, 18.0, 18.0]);
         }
     }
 }
 
-/// Wraps the notes to the window's width (196 at most, less its margins) the first time the window draws: the
+/// Wraps the notes to the window's width (198 at most, less its margins) the first time the window draws: the
 /// geometry counts their lines.
 fn wrap_notes(draw: &dyn DrawContext) {
     let views = {
@@ -402,22 +386,22 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
         p.draw.fill([0.0, 0.0, gui[0], gui[1]], DIM);
     }
     let _ = rect;
-    // Tabs, as JEI's: the others behind the window, the selected one over its edge, joined to it.
-    for (i, r) in g.tabs.iter().filter(|(i, _)| *i != o.tab) {
-        p.tab(&o, *i, *r);
-    }
+    // The window, then its tabs over its top edge (JEI draws them after it).
     p.frame(g.panel);
-    for (i, r) in g.tabs.iter().filter(|(i, _)| *i == o.tab) {
+    for (i, r) in &g.tabs {
         p.tab(&o, *i, *r);
     }
     if !g.catalysts.is_empty() {
         let [x, y, w, h] = g.catalyst_panel;
-        if !p.nine("catalyst_tab", [x - 1.0, y - 1.0, w + 2.0, h + 2.0], 4.0) {
+        if !p.nine("catalyst_tab", g.catalyst_panel, 4.0) {
             p.frame(g.catalyst_panel);
         }
+        // One slot background behind every catalyst, 5 px in; the items are 16 px.
+        if !p.nine("slot", [x + 5.0, y + 5.0, w - 10.0, h - 10.0], 1.0) {
+            p.slot([x + 5.0, y + 5.0, w - 10.0, h - 10.0]);
+        }
         for (stack, r) in o.catalysts.iter().zip(&g.catalysts) {
-            p.slot(*r);
-            p.stack(stack, *r);
+            p.stack(stack, [r[0] - 1.0, r[1] - 1.0, 18.0, 18.0]);
         }
     }
     // JEI's two bars: the category's name, then the page, each between its arrows.
