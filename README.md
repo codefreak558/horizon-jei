@@ -32,7 +32,7 @@ which current launchers refuse to load.
 - **Settings** in Options → Mods → JEI: give, the bookmark bar, item order and
   language (English/Spanish). The bar and the order are mirrored in
   `config/jei/jei.cfg`.
-- **Commands**: `/jei`, `/jei give`, `/jei sort name|id`,
+- **Commands**: `/jei`, `/jei give`, `/jei sort mod|name|id`,
   `/jei bookmarks clear`, `/jei config`.
 
 Two features use **the native route** (`[[native.mixin]]` rows in

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **The wheel turns the item list's pages.** Scrolling over JEI's item list goes to the next or previous
+  page, as JEI's does; the game's panel read no wheel there. A `HEAD` mixin on the list's draw
+  (`panel_scroll`, native route) turns the page the scroll hook asked for.
+- **Mod name in tooltips.** Every item tooltip ends with the mod the item comes from, blue and italic as
+  JEI's (`item_tooltip`): the installed mod's name from the package list, else its namespace made readable.
+- **Sorted by mod.** The list's new default order is JEI's: Minecraft first, then each mod by name, the
+  game's registry order within each. `name` and `id` remain (`/jei sort mod|name|id`, or "Item order" on
+  the settings page).
+
 ## 0.4.0 — 2026-11-22 (SDK port)
 
 - **A native mod on Horizon's mod SDK.** The mixin bundle (`mixins/jei/`, spliced into the game as
