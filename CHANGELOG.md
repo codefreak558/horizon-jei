@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.0 — 2026-11-22 (SDK port)
+
+- **A native mod on Horizon's mod SDK.** The mixin bundle (`mixins/jei/`, spliced into the game as
+  `crate::game` modules) is gone; current launchers refuse that format. The mod is now one crate
+  implementing `mod_api::Hooks`, pinned to Horizon `2b77287` (Nightly 2026-11-22) in
+  `horizon-mod.toml`'s `[native]`, built with `horizon-launcher native-build`.
+- **New mod id `jei_new`**, so it can sit beside the old `jei` entry. Its files moved to
+  `config/jei_new/` (`jei.cfg`, `bookmarks.txt`; same formats as before), its sprites to
+  `assets/jei_new/`. The separate content mod `content/jei/` is folded in.
+- Ported: the item list (`panel_items` with JEI's 1.12 `PanelStyle::Classic`), search, R/U, the
+  recipe screen, "+" (recipes from the player's recipe book; Shift places as many as fit), creative
+  give, tooltip hints, the bookmark bar, the settings page (now `register_setting` rows with
+  translations in English and Spanish) and `/jei`.
+- Not ported (no public SDK API yet, see `docs/port-sdk.md`): recipe pages in the game's panel (the
+  "docked" view), the kit's collection tabs (loot, ore generation, trades), stack subtypes (potions,
+  tipped arrows), the list on the creative screen, brewing, and the "JEI kit" API for other mods.
+- The tests moved to `src/tests/` (a native package may hold Rust only under `src/`). CI runs fmt,
+  clippy and tests against the pinned SDK; `compatibility.json`, `tools/package.py`, `proof.py` and
+  the old Nightly compile job are removed.
+- Porting: codefreak558.
+
 ## 0.3.0 — 2026-11-14
 
 - **Mod API & JEI Kit support.** Added public integration API (`hz_jeikit_v15_jei`, `hz_kit_layer_jei::register`, `hz_kit_window_jei`, `hz_kit_math_jei`, `hz_kit_loot_jei`, `hz_kit_keys_jei`, `hz_kit_panel_jei`) and the optional proc-macro crate (`mixins/jei/optional/`), allowing third-party mods (AE2, Elevator, Iron Furnaces, etc.) to register custom tabs, cards, and recipes seamlessly.

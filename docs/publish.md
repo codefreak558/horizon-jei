@@ -1,5 +1,9 @@
 # Publishing a release
 
+> **Out of date since 0.4.0.** This describes the 0.1–0.3 mixin bundle (`native.py`, `.hnmod`,
+> `compatibility.json`). The SDK port builds with `horizon-launcher native-build`, and its registry
+> flow (a source `.hmod` with `[native]`) has not been written up yet.
+
 What the registry needs (docs: <https://playhorizon.dev/docs/publish-a-mod>), and what is already
 done for 0.2.1. An update is the same submit form with a new version: it adds a `[[versions]]` to
 `mods/jei.toml`, the entry 0.1.0 created.

@@ -16,7 +16,7 @@ Options → Mods → JEI, and from the chat commands.
 The mod's keys (`recipe`, `uses`, `bookmark`) are the game's `mods.toml`-style bindings, set on the
 same page: R, U and A by default.
 
-## The mod's files, `config/jei/`
+## The mod's files, `config/jei_new/`
 
 | File | What it is |
 |---|---|

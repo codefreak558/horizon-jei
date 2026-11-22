@@ -9,46 +9,34 @@ permissions:
   contents: read
 
 jobs:
-  unit:
-    name: unit tests
+  check:
+    name: fmt, clippy and tests against the pinned SDK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # The toolchain the launcher builds native mods with (the SDK's sdk.json pins it).
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           components: rustfmt, clippy
+      # The SDK's API crate, from the signed sdk-<commit> release, checked by SHA-256.
+      - uses: actions/cache@v4
+        with:
+          path: .horizon/sdk
+          key: sdk-${{ hashFiles('tools/fetch-sdk.sh') }}
+      - name: fetch the SDK
+        run: tools/fetch-sdk.sh
       - name: format
-        run: |
-          cargo fmt --check
-          rustfmt --edition 2024 --check mixins/jei/*.rs
+        run: cargo fmt --check
       - name: clippy
         run: cargo clippy --all-targets -- -D warnings
       - name: test
         run: cargo test
-
-  native:
-    name: compile into Horizon
-    runs-on: ubuntu-latest
-    needs: unit
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: horizon-rust/horizon-mods
-          path: horizon-mods
-      - uses: dtolnay/rust-toolchain@stable
-      - name: system libraries
+      # The package rules the launcher applies to a native mod folder: Rust only under src/, a manifest with
+      # [native], no build.rs.
+      - name: package layout
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libasound2-dev libudev-dev \
-            libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev
-      - uses: actions/cache@v4
-        with:
-          path: |
-            horizon-mods/native/source
-            horizon-mods/native/tools
-            horizon-mods/native/target
-          key: native-${{ hashFiles('compatibility.json') }}
-          restore-keys: native-
-      - name: cargo horizon-mods check
-        run: python3 horizon-mods/native/tools/native.py check "$PWD"
+          bad=$(git ls-files '*.rs' | grep -v '^src/' || true)
+          if [ -n "$bad" ]; then echo "::error::Rust files outside src/ refuse the package:"; echo "$bad"; exit 1; fi
+          test ! -e build.rs
+          grep -q '^\[native\]' horizon-mod.toml

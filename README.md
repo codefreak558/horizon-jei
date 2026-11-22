@@ -2,96 +2,98 @@
 
 An item and recipe viewer for [Horizon](https://playhorizon.dev), the Rust
 reimplementation of Minecraft: Java Edition 26.3. It is a port of
-[JustEnoughItems](https://github.com/mezz/JustEnoughItems) (JEI), rebuilt on
-Horizon's native hook points.
+[JustEnoughItems](https://github.com/mezz/JustEnoughItems) (JEI), built as a
+native mod on Horizon's mod SDK (`horizon-mod-api`).
 
-Status: **0.3.0 "Recipe screen, Mod API and bookmarks"**. On top of 0.2's overlay and bookmarks (every
-item, JEI's search grammar, R/U over any stack, a tab per station, recipe
-pages, "+", creative give, English and Spanish), the mod now draws over
-container screens:
+Status: **0.4.0, the SDK port** (mod id `jei_new`). It is made for the Horizon
+build of Nightly 2026-11-22 (`2b77287`). It replaces the 0.3 mixin bundle,
+which current launchers refuse to load.
 
-- **Item tooltips** say what makes an item and what uses it (`R: Recipes (12)`,
-  `U: Uses (3)`) and mark the bookmarked ones, in the game's own tooltips,
-  the panel's included.
-- **Subtypes**: the potions, tipped arrows and other stacks the recipe tables
-  name with components are items of their own in the list.
-- **Bookmarks**: the **A** key bookmarks the stack under the pointer; a bar of
-  two columns of twelve sits at the screen's top left corner, left click opens
-  a stack's recipes, right click its uses, shift or the middle button takes the
-  bookmark away, and dragging reorders it. The bar is kept in
-  `config/jei/bookmarks.txt` and comes back with the next world.
-- **Config**: `config/jei/jei.cfg` holds the list's order (`/jei sort name|id`)
-  and the toggles on the mod's settings page (tooltip hints, the bar, where
-  recipes show).
-- **Recipe screen** (unreleased): R, U and clicks open JEI's own window over the
-  open screen, with tabs, catalysts, pages and a "+" that fills the grid under
-  it with no recipe-book unlock. Escape or Backspace goes back. The 0.2 panel
-  view is a setting.
+- **Item list** beside container screens and the inventory, drawn in JEI's 1.12
+  style (`PanelStyle::Classic`), with JEI's search grammar (`@mod`, `#tag`,
+  `-exclude`, `a|b`).
+- **R / U** over any stack (the list's or a slot's) opens its recipes or uses.
+  So does a click in the list: left for recipes, right for uses.
+- **Recipe screen**: JEI's own window over the open screen, with a tab per
+  station, catalysts, pages and the mouse wheel. Escape or Backspace goes back.
+  **"+"** fills the open crafting grid with a recipe from your recipe book
+  (Shift fills as many as you can).
+- **Tooltip hints**: `R: Recipes (12)`, `U: Uses (3)` and a bookmark mark in
+  every item tooltip.
+- **Bookmarks**: **A** bookmarks the stack under the pointer. The bar sits at
+  the top left of container screens. Left click opens a bookmark's recipes,
+  right click its uses, Shift or middle click removes it, and dragging
+  reorders. Kept in `config/jei_new/bookmarks.txt`.
+- **Creative give**: with "Click gives items" on, a click in the list gives one
+  and a right click gives a stack.
+- **Settings** in Options → Mods → JEI: give, tooltip hints, the bookmark bar,
+  item order and language (English/Spanish). The toggles are mirrored in
+  `config/jei_new/jei.cfg`.
+- **Commands**: `/jei`, `/jei give`, `/jei sort name|id`,
+  `/jei bookmarks clear`, `/jei config`.
 
-See [`docs/jei-parity.md`](docs/jei-parity.md) for the feature-by-feature state
-against JEI.
+Not ported yet (the SDK has no public API for them, see
+[`docs/port-sdk.md`](docs/port-sdk.md)):
 
-Not there yet: click on a container slot (only R/U), the creative inventory
-panel, the non-recipe categories (anvil, grindstone, compost, fuel), shift on
-"+", recipe transfer into furnaces, and the `$tooltip` / `%creative tab`
-searches. Some of those need new Horizon hooks; [`docs/roadmap.md`](docs/roadmap.md)
-lists them.
+- recipe pages inside the game's own panel (0.3's "docked" view)
+- the collection tabs: loot drops, ore generation and villager trades
+- stack subtypes such as potions and tipped arrows (the list shows item ids only)
+- the item list on the creative inventory screen
+- brewing recipes
 
 ## Install
 
-From the registry: Mods → JEI → Install, then Settings → Game → Native mods
-(experimental) → Build, and play the **Native mods** instance.
-
-From a clone of this folder:
+The mod is a native mod. The launcher compiles it against your instance's
+Horizon build. Native mods are not sandboxed, so only build code you trust.
 
 ```sh
-horizon-launcher native-build /path/to/horizon-jei/mixins/jei --trust-native-code
+git clone https://github.com/codefreak558/horizon-jei
+cd horizon-jei
+tools/fetch-sdk.sh
+horizon-launcher native-build . --instance "<your instance>" --trust-native-code
 ```
 
-The first build downloads Rust and takes 20-30 minutes; later builds recompile
-only the game. Native mods are not sandboxed: build only code you trust.
-
-## Releases
-
-A release is a `.hnmod` built from a commit of this repository with
-`native/tools/native.py package`, checked with `cargo horizon-mod check`, and
-signed with minisign. The public key is [`horizon-jei.pub`](horizon-jei.pub)
-(key id `FC3386F1F51ECF6A`); the private key is not in the repository, and
-every later version is signed with it, so nobody else can publish an update
-under this project's name. The signature of each release goes into the
-registry entry, not into this repository.
+The instance must play Horizon `2b77287` (Nightly 2026-11-22), the build
+pinned in `horizon-mod.toml`'s `[native]` table. Start the instance and open
+your inventory.
 
 ## Develop
 
-```sh
-cargo test                       # the mod's own logic, no game
+You need the launcher's own Rust toolchain (1.99.1:
+`horizon-launcher rust install`) on your `PATH`, plus `rustfmt` and `clippy`
+for that version.
 
-# From a clone of https://github.com/horizon-rust/horizon-mods:
-python3 native/tools/native.py check /path/to/horizon-jei
-python3 native/tools/native.py check /path/to/horizon-jei --horizon latest
-python3 native/tools/native.py package /path/to/horizon-jei
-cargo horizon-mod check native/target/jei-<version>.hnmod
+```sh
+tools/fetch-sdk.sh        # the pinned SDK into .horizon/sdk/ (git-ignored)
+cargo test                # the viewer's logic, no game
+tools/dev-check.sh        # fmt, clippy -D warnings, tests, then native-build
 ```
 
-In game: Options → Mods → JEI, and `/jei`, `/jei sort`, `/jei bookmarks clear`,
-`/jei config`.
+`horizon-launcher native-build .` is the real build. It compiles the crate
+against the prebuilt game with the SDK's own crates, so only the SDK's
+`serde_json` (`mod_api::serde_json`) is usable, and `Cargo.lock` must keep the
+SDK's pins. See [`docs/dev.md`](docs/dev.md).
 
 ## Layout
 
 ```
-Cargo.toml                 the mod's tests (lib = mixins/jei/runtime.rs)
-compatibility.json         game 26.3, hook points 313, the tested revision
-mixins/jei/
-  horizon-mixin.toml       the bundle: modules and HEAD hooks
-  runtime.rs               the core (becomes crate::game::jei)
-  glue.rs                  the game's tables and the panel in and out
-  screen_post.rs tooltip.rs mouse_press.rs mouse_release.rs mouse_drag.rs
-                           the overlay: the bar, its tooltip and its clicks
-  list.rs settings.rs click.rs command.rs event.rs frame.rs
-                           one helper per hook
+horizon-mod.toml   the manifest: id jei_new, [native] pinned to Horizon 2b77287
+Cargo.toml         depends only on .horizon/sdk/api/crates/horizon-mod-api
+Cargo.lock         seeded from the SDK's lock (the game's pins)
+src/
+  lib.rs           #[mod_api::horizon_mod] impl Hooks: the hooks, one line each
+  glue.rs          the game's items/recipes in; panel, give, "+" and the overlay out
+  window.rs        JEI's recipe screen: drawing and hit tests
+  settings.rs      the Options > Mods page and /jei
+  runtime.rs       the viewer: search, sort, pages, bookmarks, config (pure Rust)
+  kit_math.rs      kit arithmetic (pure); kit_collection.rs loot-condition evaluator (pure)
+  tests/           daily_use.rs, kit_math.rs (native packages hold Rust only under src/)
+assets/jei_new/    JEI 1.12's GUI sprites (MIT) and the en_us / es_es lang files
+tools/             fetch-sdk.sh, dev-check.sh
+docs/              port-sdk.md (the SDK map), architecture.md, dev.md, ...
 ```
 
 ## License
 
-MIT. See `LICENSE` and `NOTICE` (attribution to JEI, © mezz).
-Not affiliated with mezz, Mojang, Microsoft or the Horizon project.
+MIT. See `LICENSE` and `NOTICE` (attribution to JEI, © mezz, and the port's
+authors). Not affiliated with mezz, Mojang, Microsoft or the Horizon project.
