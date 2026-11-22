@@ -99,6 +99,11 @@ impl Lang {
         }
     }
 
+    /// Whether a note is the shapeless mark (the screen draws JEI's icon for it instead of the text).
+    pub fn is_shapeless_note(note: &str) -> bool {
+        note == Lang::En.shapeless() || note == Lang::Es.shapeless()
+    }
+
     fn shapeless(self) -> &'static str {
         match self {
             Lang::En => "Shapeless",
@@ -613,6 +618,28 @@ impl Station {
             Station::Stonecutter => "minecraft:stonecutter",
             Station::Smithing => "minecraft:smithing_table",
             Station::Brewing => "minecraft:brewing_stand",
+        }
+    }
+
+    /// The station's tab title, as JEI names its recipe categories.
+    pub fn label(self, lang: Lang) -> &'static str {
+        match (self, lang) {
+            (Station::Crafting, Lang::En) => "Crafting",
+            (Station::Crafting, Lang::Es) => "Fabricación",
+            (Station::Furnace, Lang::En) => "Smelting",
+            (Station::Furnace, Lang::Es) => "Fundición",
+            (Station::BlastFurnace, Lang::En) => "Blasting",
+            (Station::BlastFurnace, Lang::Es) => "Alto horno",
+            (Station::Smoker, Lang::En) => "Smoking",
+            (Station::Smoker, Lang::Es) => "Ahumado",
+            (Station::Campfire, Lang::En) => "Campfire Cooking",
+            (Station::Campfire, Lang::Es) => "Cocina en fogata",
+            (Station::Stonecutter, Lang::En) => "Stonecutting",
+            (Station::Stonecutter, Lang::Es) => "Cortapiedras",
+            (Station::Smithing, Lang::En) => "Smithing",
+            (Station::Smithing, Lang::Es) => "Herrería",
+            (Station::Brewing, Lang::En) => "Brewing",
+            (Station::Brewing, Lang::Es) => "Destilación",
         }
     }
 
@@ -1831,7 +1858,7 @@ impl Viewer {
 
     fn tab_name(&self, tab: Tab) -> String {
         match tab {
-            Tab::Station(s) => self.name(s.icon()),
+            Tab::Station(s) => s.label(self.lang).to_owned(),
             Tab::Category(i) => self.categories[i].title.clone(),
         }
     }
@@ -2024,8 +2051,10 @@ pub mod screen {
     pub const TAB: [f32; 2] = [24.0, 22.0];
     /// One output of a category recipe: the slot and two short lines.
     pub const CHANCE: [f32; 2] = [52.0, 20.0];
-    /// Between two recipes of a page.
-    pub const GAP: f32 = 8.0;
+    /// Between two recipes of a page (their backgrounds keep `PAD` of it each).
+    pub const GAP: f32 = 12.0;
+    /// The recipe background's margin around a recipe.
+    pub const PAD: f32 = 4.0;
     pub const LINE: f32 = 10.0;
     pub const ARROW: f32 = 24.0;
     pub const BUTTON: f32 = 12.0;
@@ -2040,6 +2069,9 @@ pub mod screen {
         pub next_tab: [f32; 4],
         /// The middle of the title's line.
         pub title: [f32; 2],
+        /// The recessed bars between the arrows: the category's name and the page.
+        pub title_bar: [f32; 4],
+        pub page_bar: [f32; 4],
         pub prev_page: [f32; 4],
         pub next_page: [f32; 4],
         pub page_text: [f32; 2],
@@ -2067,13 +2099,20 @@ pub mod screen {
         Geom {
             panel: [x, y, width, height],
             tabs: shown_tabs,
-            prev_tab: [x + 5.0, y + 5.0, 13.0, 12.0],
-            next_tab: [x + width - 18.0, y + 5.0, 13.0, 12.0],
-            title: [x + width / 2.0, y + 7.0],
-            prev_page: [x + 5.0, y + 20.0, 13.0, 12.0],
-            next_page: [x + width - 18.0, y + 20.0, 13.0, 12.0],
-            page_text: [x + width / 2.0, y + 22.0],
-            content: [x + 6.0, y + 38.0, width - 12.0, height - 44.0],
+            prev_tab: [x + 5.0, y + 5.0, 13.0, 13.0],
+            next_tab: [x + width - 18.0, y + 5.0, 13.0, 13.0],
+            title: [x + width / 2.0, y + 8.0],
+            title_bar: [x + 20.0, y + 5.0, width - 40.0, 13.0],
+            prev_page: [x + 5.0, y + 21.0, 13.0, 13.0],
+            next_page: [x + width - 18.0, y + 21.0, 13.0, 13.0],
+            page_text: [x + width / 2.0, y + 24.0],
+            page_bar: [x + 20.0, y + 21.0, width - 40.0, 13.0],
+            content: [
+                x + 6.0 + PAD,
+                y + 38.0 + PAD,
+                width - 12.0 - 2.0 * PAD,
+                height - 44.0 - 2.0 * PAD,
+            ],
             catalyst_panel,
             catalysts: (0..shown)
                 .map(|i| [x - 21.0, y + 7.0 + i as f32 * SLOT, SLOT, SLOT])
@@ -2108,7 +2147,41 @@ pub mod screen {
             .ceil();
         g.panel[3] = height;
         g.content[3] = height - chrome;
+        // Centred on the screen's height, the tabs above it, as JEI's window.
+        let top = ((gui[1] - TAB[1] - height) / 2.0).floor().max(4.0);
+        g.translate(0.0, top - 4.0);
         g
+    }
+
+    impl Geom {
+        /// Every part moved by `dx`, `dy`.
+        fn translate(&mut self, dx: f32, dy: f32) {
+            let r = |r: &mut [f32; 4]| {
+                r[0] += dx;
+                r[1] += dy;
+            };
+            let p = |p: &mut [f32; 2]| {
+                p[0] += dx;
+                p[1] += dy;
+            };
+            for rect in [
+                &mut self.panel,
+                &mut self.prev_tab,
+                &mut self.next_tab,
+                &mut self.title_bar,
+                &mut self.prev_page,
+                &mut self.next_page,
+                &mut self.page_bar,
+                &mut self.content,
+                &mut self.catalyst_panel,
+            ] {
+                r(rect);
+            }
+            self.tabs.iter_mut().for_each(|(_, t)| r(t));
+            self.catalysts.iter_mut().for_each(r);
+            p(&mut self.title);
+            p(&mut self.page_text);
+        }
     }
 
     /// What a part of a recipe on the screen is.
@@ -2131,7 +2204,7 @@ pub mod screen {
     }
 
     fn note_lines(view: &View) -> usize {
-        if view.note.is_empty() {
+        if view.note.is_empty() || super::Lang::is_shapeless_note(&view.note) {
             0
         } else {
             view.note.split('\n').count()
@@ -2276,7 +2349,8 @@ pub mod screen {
                     placed.slots.push((Part::Result(i), slot(ax + ARROW, mid)));
                 }
                 if view.action.is_some() {
-                    placed.button = Some([x + w + 4.0, y + grid_h - BUTTON, BUTTON, BUTTON]);
+                    placed.button =
+                        Some([x + w + PAD + 2.0, y + grid_h + PAD - BUTTON, BUTTON, BUTTON]);
                 }
                 grid_h
             }

@@ -4,8 +4,6 @@
   "jei.key.bookmark": "Bookmark item",
   "jei.setting.give": "Click gives items",
   "jei.setting.give.tooltip": "In creative mode, a click on a listed item gives one; a right click gives a stack.",
-  "jei.setting.hints": "Tooltip hints",
-  "jei.setting.hints.tooltip": "Item tooltips say how many recipes make and use the item.",
   "jei.setting.bookmarks": "Bookmark bar",
   "jei.setting.bookmarks.tooltip": "The bar of bookmarked items at the top left of container screens.",
   "jei.setting.sort": "Item order",

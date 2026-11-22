@@ -19,9 +19,9 @@ pub use settings::{COMMANDS, settings};
 
 use mod_api::{
     ClientHost, ClientTickPostEvent, CommandEvent, Flow, GuiRenderPostEvent, Hooks,
-    ItemTooltipEvent, KeyRegistration, PanelEventEvent, RecipesReceivedEvent,
-    RegisterClientCommandsEvent, Registrar, RegistrationContext, ScreenClosingEvent,
-    ScreenKeyPressedPreEvent, ScreenMouseButtonPressedPreEvent, ScreenMouseButtonReleasedPreEvent,
+    KeyRegistration, PanelEventEvent, RecipesReceivedEvent, RegisterClientCommandsEvent, Registrar,
+    RegistrationContext, ScreenClosingEvent, ScreenKeyPressedPreEvent,
+    ScreenMouseButtonPressedPreEvent, ScreenMouseButtonReleasedPreEvent,
     ScreenMouseDraggedPreEvent, ScreenMouseScrolledPreEvent, ScreenRenderPostEvent,
     SettingChangedEvent,
 };
@@ -66,10 +66,6 @@ impl Hooks for Jei {
         if event.mod_id == ID {
             glue::panel_event(host, event.event);
         }
-    }
-
-    fn item_tooltip(&self, host: &dyn ClientHost, event: &mut ItemTooltipEvent<'_>) {
-        glue::tooltip(host, event.stack, event.lines);
     }
 
     fn screen_render_post(&self, host: &dyn ClientHost, event: &mut ScreenRenderPostEvent<'_>) {

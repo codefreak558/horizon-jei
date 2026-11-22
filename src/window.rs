@@ -30,6 +30,7 @@ const OUTLINE: u32 = 0xFF_00_00_00;
 const SLOT_BG: u32 = 0xFF_8B_8B_8B;
 const SLOT_DARK: u32 = 0xFF_37_37_37;
 const TEXT: u32 = 0xFF_40_40_40;
+const WHITE: u32 = 0xFF_FF_FF_FF;
 const DIM: u32 = 0xA0_10_10_10;
 /// JEI's GUI sprites (1.12's, MIT), in this mod's assets; when they don't load the screen draws the same shapes
 /// with fills.
@@ -219,6 +220,38 @@ impl Painter<'_> {
         d.fill([x + w - 1.0, y + 1.0, 1.0, h - 1.0], PANEL_DARK);
     }
 
+    /// A recessed bar, as JEI's category and page lines.
+    fn bar(&mut self, r: [f32; 4]) {
+        let [x, y, w, h] = r;
+        let d = &mut *self.draw;
+        d.fill(r, SLOT_BG);
+        d.fill([x, y, w - 1.0, 1.0], SLOT_DARK);
+        d.fill([x, y, 1.0, h - 1.0], SLOT_DARK);
+        d.fill([x + 1.0, y + h - 1.0, w - 1.0, 1.0], PANEL_LIGHT);
+        d.fill([x + w - 1.0, y + 1.0, 1.0, h - 1.0], PANEL_LIGHT);
+    }
+
+    /// The light rounded box JEI draws behind each recipe.
+    fn recipe_background(&mut self, r: [f32; 4]) {
+        if self.nine("single_recipe_background", r, 4.0) {
+            return;
+        }
+        let [x, y, w, h] = r;
+        let d = &mut *self.draw;
+        d.fill([x + 1.0, y, w - 2.0, h], 0xFF_A8_A8_A8);
+        d.fill([x, y + 1.0, w, h - 2.0], 0xFF_A8_A8_A8);
+        d.fill([x + 1.0, y + 1.0, w - 2.0, h - 2.0], 0xFF_B8_B8_B8);
+    }
+
+    /// JEI's shapeless icon, half size, in the top right corner of a recipe's background.
+    fn shapeless(&mut self, back: [f32; 4]) {
+        let name = format!("{SPRITES}icons/shapeless_icon");
+        if let Some([w, h]) = self.sprite_size(&name) {
+            let at = [back[0] + back[2] - 11.0, back[1] + 2.0, 9.0, 9.0];
+            self.draw.sprite(&name, [0.0, 0.0, w, h], at, None);
+        }
+    }
+
     fn slot(&mut self, r: [f32; 4]) {
         if self.nine("slot", r, 1.0) {
             return;
@@ -383,12 +416,12 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
             p.stack(stack, *r);
         }
     }
+    // JEI's two bars: the category's name, then the page, each between its arrows.
     let name = o.names.get(o.tab).cloned().unwrap_or_default();
-    p.centred(&name, g.title[0], g.title[1], g.panel[2] - 44.0, TEXT);
-    if o.tabs.len() > 1 {
-        p.button(g.prev_tab, "<", true, hit == Some(Hit::PrevTab));
-        p.button(g.next_tab, ">", true, hit == Some(Hit::NextTab));
-    }
+    p.bar(g.title_bar);
+    p.centred(&name, g.title[0], g.title[1], g.title_bar[2] - 4.0, WHITE);
+    p.button(g.prev_tab, "<", o.tabs.len() > 1, hit == Some(Hit::PrevTab));
+    p.button(g.next_tab, ">", o.tabs.len() > 1, hit == Some(Hit::NextTab));
     let pages = geo::pages(&o.views, g.content);
     let page = o.page.min(pages.len().saturating_sub(1));
     // A one-page category shows its whole subtitle there; more pages, the page too.
@@ -397,22 +430,44 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
         (false, false) => o.subtitle.clone(),
         (false, true) => format!("{}  {}", o.subtitle, lang.page_of(page, pages.len())),
     };
-    // The page arrows flank the line only when there are pages to turn.
-    let room = if pages.len() > 1 {
-        g.panel[2] - 44.0
-    } else {
-        g.panel[2] - 12.0
-    };
-    p.centred(&line, g.page_text[0], g.page_text[1], room, 0xFF_60_60_60);
-    if pages.len() > 1 {
-        p.button(g.prev_page, "<", true, hit == Some(Hit::PrevPage));
-        p.button(g.next_page, ">", true, hit == Some(Hit::NextPage));
-    }
+    p.bar(g.page_bar);
+    p.centred(
+        &line,
+        g.page_text[0],
+        g.page_text[1],
+        g.page_bar[2] - 4.0,
+        WHITE,
+    );
+    p.button(
+        g.prev_page,
+        "<",
+        pages.len() > 1,
+        hit == Some(Hit::PrevPage),
+    );
+    p.button(
+        g.next_page,
+        ">",
+        pages.len() > 1,
+        hit == Some(Hit::NextPage),
+    );
     if let Some(pieces) = pages.get(page) {
         for (n, at) in geo::layout(&o.views, pieces, g.content) {
             let piece = &pieces[n];
             let view = &o.views[piece.view];
             let placed = geo::place(view, piece, at, g.content[2]);
+            // JEI's recipe background behind each recipe, the shapeless mark in its corner.
+            let [w, h] = geo::size(view, piece, g.content[2]);
+            let back = [
+                at[0] - geo::PAD,
+                at[1] - geo::PAD,
+                w + 2.0 * geo::PAD,
+                h + 2.0 * geo::PAD,
+            ];
+            p.recipe_background(back);
+            let shapeless = jei::Lang::is_shapeless_note(&view.note);
+            if shapeless {
+                p.shapeless(back);
+            }
             for (part, r) in &placed.slots {
                 p.slot(*r);
                 let stack = match part {
@@ -450,7 +505,7 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
                 let hovered = hit == Some(Hit::Plus(piece.view, on));
                 p.button(r, "+", on, hovered);
             }
-            if !view.note.is_empty() && piece.outputs.start == 0 {
+            if !view.note.is_empty() && !shapeless && piece.outputs.start == 0 {
                 for (k, text) in view.note.split('\n').enumerate() {
                     let at = [placed.notes[0], placed.notes[1] + k as f32 * geo::LINE];
                     p.draw.text(text, at, 0xFF_50_50_50, false);
@@ -464,7 +519,7 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
             stack,
             view,
             output,
-        }) => stack_lines(&o, stack, *view, *output, lang),
+        }) => stack_lines(&o, stack, *view, *output),
         Some(Hit::Plus(_, on)) => vec![format!("§f{}", lang.transfer_hint(*on))],
         Some(Hit::Tab(i)) => (o.names.get(*i))
             .map(|n| vec![format!("§f{n}")])
@@ -482,23 +537,14 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
     }
 }
 
-/// A stack's tooltip on the recipe screen: its name, a category output's chance, count and notes, and JEI's
-/// hints.
+/// A stack's tooltip on the recipe screen: its name, and a category output's chance, count and notes.
 fn stack_lines(
     o: &Overlay,
     stack: &Stack,
     view: Option<usize>,
     output: Option<usize>,
-    lang: jei::Lang,
 ) -> Vec<String> {
-    let (name, counts, marked) = {
-        let state = st();
-        (
-            state.name(&stack.item),
-            state.counts(stack),
-            state.bookmarked(stack),
-        )
-    };
+    let name = st().name(&stack.item);
     let mut lines = vec![format!("§f{name}")];
     if let (Some(v), Some(i)) = (view, output)
         && let Some(c) = o.views.get(v).and_then(|v| v.chances.get(i))
@@ -511,9 +557,6 @@ fn stack_lines(
         };
         lines.push(format!("§e{}{range}", jei::percent(c.chance)));
         lines.extend(c.notes.iter().map(|n| format!("§7{n}")));
-    }
-    for (text, _) in jei::tooltip_lines(counts, marked, lang) {
-        lines.push(format!("§8{text}"));
     }
     lines
 }

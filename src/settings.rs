@@ -6,11 +6,9 @@ use crate::glue;
 use crate::runtime::{self as jei, Config, Sort};
 
 /// The settings on JEI's page in Options > Mods.
-pub fn settings() -> [SettingSpec; 5] {
+pub fn settings() -> [SettingSpec; 4] {
     [
         SettingSpec::toggle("give", "jei.setting.give", false).tooltip("jei.setting.give.tooltip"),
-        SettingSpec::toggle("hints", "jei.setting.hints", true)
-            .tooltip("jei.setting.hints.tooltip"),
         SettingSpec::toggle("bookmarks", "jei.setting.bookmarks", true)
             .tooltip("jei.setting.bookmarks.tooltip"),
         SettingSpec::choice(
@@ -44,7 +42,6 @@ fn flag(on: bool) -> &'static str {
 
 /// Shows the file's config on the settings page.
 pub(crate) fn show(host: &dyn ClientHost, config: Config) {
-    host.set_setting(jei::ID, "hints", flag(config.hints));
     host.set_setting(jei::ID, "bookmarks", flag(config.bookmarks));
     let sort = match config.sort {
         Sort::Name => "0",
@@ -57,7 +54,6 @@ pub(crate) fn show(host: &dyn ClientHost, config: Config) {
 pub(crate) fn changed(host: &mut dyn ClientHost, key: &str) {
     let mut config = glue::config(host);
     match key {
-        "hints" => config.hints = host.setting_bool("hints").unwrap_or(true),
         "bookmarks" => config.bookmarks = host.setting_bool("bookmarks").unwrap_or(true),
         "sort" => {
             let sort = match host.setting_choice("sort") {

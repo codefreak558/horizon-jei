@@ -4,8 +4,6 @@
   "jei.key.bookmark": "Marcar objeto",
   "jei.setting.give": "Clic da objetos",
   "jei.setting.give.tooltip": "En modo creativo, un clic en un objeto de la lista da uno; un clic derecho da una pila.",
-  "jei.setting.hints": "Pistas en descripciones",
-  "jei.setting.hints.tooltip": "Las descripciones dicen cuántas recetas hacen y usan el objeto.",
   "jei.setting.bookmarks": "Barra de marcadores",
   "jei.setting.bookmarks.tooltip": "La barra de objetos marcados arriba a la izquierda de las pantallas de contenedores.",
   "jei.setting.sort": "Orden",

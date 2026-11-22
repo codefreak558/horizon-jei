@@ -13,8 +13,8 @@ use mod_api::{
 };
 
 use crate::runtime::{
-    self as jei, Bookmarks, Config, Context, Counts, Event, Ingredient, Item, Kind, Out, Recipe,
-    Session, Sort, Stack, Toggle, Viewer,
+    self as jei, Bookmarks, Config, Context, Event, Ingredient, Item, Kind, Out, Recipe, Session,
+    Sort, Stack, Toggle, Viewer,
 };
 use crate::window::{self, Overlay};
 
@@ -150,16 +150,6 @@ impl State {
     pub(crate) fn name(&self, id: &str) -> String {
         self.viewer()
             .map_or_else(|| id.to_owned(), |v| v.item_name(id))
-    }
-
-    pub(crate) fn counts(&self, stack: &Stack) -> Counts {
-        self.viewer().map_or(Counts::default(), |v| {
-            v.counts(&stack.item, &stack.components)
-        })
-    }
-
-    pub(crate) fn bookmarked(&self, stack: &Stack) -> bool {
-        self.bookmarks.position(stack).is_some()
     }
 }
 
@@ -1166,37 +1156,6 @@ pub(crate) fn screen_closing(host: &dyn ClientHost) {
     };
     if open {
         pending(Event::Close);
-    }
-}
-
-/// Adds the viewer's lines to any item's tooltip: what makes it, what uses it and whether it is bookmarked.
-pub(crate) fn tooltip(host: &dyn ClientHost, stack: &ItemStack, lines: &mut Vec<(Text, u32)>) {
-    if !host.on(jei::ID) {
-        return;
-    }
-    load(host);
-    let (counts, marked, hints) = {
-        let state = st();
-        let Some(id) = state.tables.id(stack.item()) else {
-            return;
-        };
-        let stack = Stack::item(id);
-        (
-            state.counts(&stack),
-            state.bookmarked(&stack),
-            state.config.hints,
-        )
-    };
-    let counts = if hints { counts } else { Counts::default() };
-    let added = jei::tooltip_lines(counts, marked, lang(host));
-    if added.is_empty() {
-        return;
-    }
-    if !lines.is_empty() {
-        lines.push((Text::literal(""), u32::MAX));
-    }
-    for (text, [r, g, b, a]) in added {
-        lines.push((Text::literal(text), u32::from_le_bytes([r, g, b, a])));
     }
 }
 
