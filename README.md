@@ -5,7 +5,7 @@ reimplementation of Minecraft: Java Edition 26.3. It is a port of
 [JustEnoughItems](https://github.com/mezz/JustEnoughItems) (JEI), built as a
 native mod on Horizon's mod SDK (`horizon-mod-api`).
 
-Status: **0.5.2, the SDK port with an add-on API** (mod id `jei`). It is made for the Horizon
+Status: **0.6.0, the SDK port with an add-on API** (mod id `jei`). It is made for the Horizon
 build of Nightly 2026-11-22 (`2b77287`). It replaces the 0.3 mixin bundle,
 which current launchers refuse to load.
 
@@ -32,7 +32,7 @@ which current launchers refuse to load.
 - **Add-on API**: other mods add categories (tabs) with chance outputs, such as
   [JER](https://github.com/codefreak558/horizon-jer)'s mob drops and villager trades. See
   [`docs/addon-api.md`](docs/addon-api.md).
-- **Settings** in Options → Mods → JEI: give, the bookmark bar, item order and
+- **Settings** in Options → Mods → JEI: give, the bookmark bar, item order, recipe navigation and
   language (English/Spanish). The bar and the order are mirrored in
   `config/jei/jei.cfg`.
 - **Commands**: `/jei`, `/jei give`, `/jei sort mod|name|id`,

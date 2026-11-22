@@ -969,10 +969,11 @@ fn apply(host: &mut dyn ClientHost, out: Out) -> Result<(), String> {
                     nothing_open && host.mod_screen_open(jei::ID)
                 }
             };
+            let config = config(host);
             let mut state = st();
-            let page = match &state.overlay {
-                Some(o) if same => o.page,
-                _ => 0,
+            let (page, scroll) = match &state.overlay {
+                Some(o) if same => (o.page, o.scroll),
+                _ => (0, 0.0),
             };
             state.overlay = Some(Overlay {
                 title,
@@ -985,6 +986,10 @@ fn apply(host: &mut dyn ClientHost, out: Out) -> Result<(), String> {
                 page,
                 own_screen,
                 wrapped: false,
+                size: [config.recipe_width as f32, config.recipe_height as f32],
+                scrolling: config.scrolling,
+                scroll,
+                drag: None,
             });
             Ok(())
         }
@@ -1163,6 +1168,20 @@ pub(crate) fn mouse_released(host: &dyn ClientHost, screen: &ScreenView<'_>, but
     if !host.on(jei::ID) {
         return false;
     }
+    // Letting go of the window's edge keeps the size it was dragged to.
+    let size = {
+        let mut state = st();
+        state.overlay.as_mut().and_then(|o| match o.drag.take() {
+            Some(window::Drag::Resize { .. }) => Some(o.size),
+            _ => None,
+        })
+    };
+    if let Some(size) = size {
+        let mut config = config(host);
+        config.recipe_width = size[0] as u32;
+        config.recipe_height = size[1] as u32;
+        store_config(host, config);
+    }
     if std::mem::take(&mut st().overlay_pressed) {
         return true;
     }
@@ -1185,6 +1204,17 @@ pub(crate) fn mouse_released(host: &dyn ClientHost, screen: &ScreenView<'_>, but
 pub(crate) fn mouse_dragged(host: &dyn ClientHost, screen: &ScreenView<'_>, button: i32) -> bool {
     if !host.on(jei::ID) {
         return false;
+    }
+    {
+        // The scrollbar's marker and the window's edge follow the pointer.
+        let mut state = st();
+        let gui = state.gui;
+        if let Some(o) = state.overlay.as_mut()
+            && o.drag.is_some()
+        {
+            window::drag_to(o, gui, screen.mouse);
+            return true;
+        }
     }
     if st().overlay_pressed {
         return true;
@@ -1247,6 +1277,16 @@ fn overlay_pressed(screen: &ScreenView<'_>, button: i32, modifiers: u32) -> bool
     };
     state.overlay_pressed = true;
     match hit {
+        window::Hit::Bar if button == 0 => {
+            if let Some(o) = state.overlay.as_mut() {
+                window::bar_press(o, gui, screen.mouse[1]);
+            }
+        }
+        window::Hit::Edge(edge) if button == 0 => {
+            if let Some(o) = state.overlay.as_mut() {
+                window::edge_press(o, gui, edge, screen.mouse);
+            }
+        }
         window::Hit::Tab(i) => state.pending.push(Event::Tab(i)),
         window::Hit::PrevTab if tabs > 0 => state.pending.push(Event::Tab((tab + tabs - 1) % tabs)),
         window::Hit::NextTab if tabs > 0 => state.pending.push(Event::Tab((tab + 1) % tabs)),
@@ -1293,6 +1333,11 @@ pub(crate) fn mouse_scrolled(
     };
     if window::hit(o, gui, screen.mouse).is_none() {
         return false;
+    }
+    // A scrolling list moves by pixels, the pages by one.
+    if o.scrolling {
+        window::scroll_by(o, gui, scroll[1] as f32);
+        return true;
     }
     let pages = window::pages(o, gui);
     let page = o.page.min(pages - 1);

@@ -6,7 +6,7 @@ use crate::glue;
 use crate::runtime::{self as jei, Config, Sort};
 
 /// The settings on JEI's page in Options > Mods.
-pub fn settings() -> [SettingSpec; 4] {
+pub fn settings() -> [SettingSpec; 5] {
     [
         SettingSpec::toggle("give", "jei.setting.give", false).tooltip("jei.setting.give.tooltip"),
         SettingSpec::toggle("bookmarks", "jei.setting.bookmarks", true)
@@ -21,6 +21,16 @@ pub fn settings() -> [SettingSpec; 4] {
             ],
             0,
         ),
+        SettingSpec::choice(
+            "navigation",
+            "jei.setting.navigation",
+            [
+                "jei.setting.navigation.paged",
+                "jei.setting.navigation.scrolling",
+            ],
+            0,
+        )
+        .tooltip("jei.setting.navigation.tooltip"),
         SettingSpec::choice(
             "language",
             "jei.setting.language",
@@ -58,6 +68,11 @@ fn sort_choice(sort: Sort) -> &'static str {
 pub(crate) fn show(host: &dyn ClientHost, config: Config) {
     host.set_setting(jei::ID, "bookmarks", flag(config.bookmarks));
     host.set_setting(jei::ID, "sort", sort_choice(config.sort));
+    host.set_setting(
+        jei::ID,
+        "navigation",
+        if config.scrolling { "1" } else { "0" },
+    );
 }
 
 /// A setting changed on the page: the file follows, and a new order shows at once.
@@ -65,6 +80,7 @@ pub(crate) fn changed(host: &mut dyn ClientHost, key: &str) {
     let mut config = glue::config(host);
     match key {
         "bookmarks" => config.bookmarks = host.setting_bool("bookmarks").unwrap_or(true),
+        "navigation" => config.scrolling = host.setting_choice("navigation") == Some(1),
         "sort" => {
             let sort = match host.setting_choice("sort") {
                 Some(1) => Sort::Name,
