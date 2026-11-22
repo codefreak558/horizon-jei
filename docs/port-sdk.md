@@ -173,16 +173,19 @@ Built and checked in game on launcher 0.2.102 / Horizon `2b77287` (instance "JEI
 
 ### Gaps beyond the ones above
 
-- **Stack subtypes.** `Stack.components` and `ItemStack` components come as the game's JSON form, while
-  `runtime`'s subtypes and the bookmarks file use the `[k=v]` command form. The port lists and bookmarks
-  item ids only. Potions and tipped arrows are not separate entries yet.
-- **Brewing.** No recipe type or SDK call lists potion mixes, so the brewing tab is empty.
-- **Creative screen.** The game shows no mod panel on the creative inventory. The list appears on the
-  survival inventory and on container and station screens.
+- **Stack subtypes (ported).** `Stack.components` is documented as the game's JSON form, but the panel reads
+  it with `command_components`, the `[k=v]` command form, and `PanelEvent::Key` hands back the same form
+  (SNBT for a slot's stack). Variants come from the registries, with stacks from `item_from_snbt`.
+- **Brewing (ported).** Horizon's brewing is data-driven (`data/<ns>/recipe/brewing/*.json`, type
+  `minecraft:brewing`), so `recipes_of_type("minecraft:brewing")` serves it.
+- **Creative screen (native route).** `browser_sync` shows a mod's panel on the creative screen only for
+  Horizon's own `recipes` mod. A `MODIFY_EXPRESSION_VALUE` mixin lifts that for JEI.
+- **Creative give of a variant (native route).** `give(ItemKey, count)` carries no components. A
+  cancellable `HEAD` mixin on `recipe_give` calls the game's `mod_give(item, count, components)` instead.
 - **"+" and the recipe book.** `recipe_book_ids` answers only for recipes the player has unlocked. The
   port resolves the book id when "+" is pressed and says so in chat when the recipe is locked.
-- **Docked view.** `panel_recipes` is still missing (horizon-rust/horizon#19392). `Config.docked` is
-  parsed but ignored, and JEI's own recipe screen always shows the pages.
+- **Docked view (dropped).** `panel_recipes` is still missing (horizon-rust/horizon#19392), and real JEI
+  has no docked view. `Config.docked` is parsed but ignored.
 
 ### Packaging rules `native-build` enforces
 

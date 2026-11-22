@@ -10,13 +10,22 @@
   formats). The separate content mod `content/jei/` (the GUI sprites) is folded in as `assets/jei/`.
 - Ported: the item list (`panel_items` with JEI's 1.12 `PanelStyle::Classic`), search, R/U, the
   recipe screen, "+" (recipes from the player's recipe book; Shift places as many as fit), creative
-  give, tooltip hints, the bookmark bar, the settings page (now `register_setting` rows with
-  translations in English and Spanish) and `/jei`.
-- Not ported (no public SDK API yet, see `docs/port-sdk.md`): recipe pages in the game's panel (the
-  "docked" view), the kit's collection tabs (loot, ore generation, trades), stack subtypes (potions,
-  tipped arrows), the list on the creative screen, brewing, and the "JEI kit" API for other mods.
+  give, the bookmark bar, the settings page (now `register_setting` rows with translations in English
+  and Spanish) and `/jei`.
+- **JEI's recipe screen look**: centred, a category bar and a page bar between arrows, JEI's category
+  names, each recipe on JEI's recipe background with the shapeless icon, "+" at its bottom right.
+- **Subtypes from the registries**: every potion (bottle, splash, lingering, tipped arrow), enchanted
+  book level, goat horn and ominous bottle, each searchable by its own name.
+- **Brewing** from the game's data-driven `minecraft:brewing` recipes.
+- **The native route** for what the SDK lacks: the list on the creative screen and the creative give of
+  a variant (`[[native.mixin]]`). The mod is therefore made for exactly the pinned build.
+- Removed: the `R: Recipes (n)` / `U: Uses (n)` tooltip lines and their setting (not a JEI feature;
+  `jei.cfg`'s `hints=` is still read and kept), and 0.3's "docked" view (not a JEI feature).
+- Not in this mod: the kit's loot drops, ore generation and villager trades, and the "JEI kit" API
+  (`docs/handover-kit-extras.md`).
 - The tests moved to `src/tests/` (a native package may hold Rust only under `src/`). CI runs fmt,
-  clippy and tests against the pinned SDK; `compatibility.json`, `tools/package.py`, `proof.py` and
+  clippy and tests against the pinned SDK, and packs and checks the `.hmod` with
+  `cargo horizon-mod build` / `check`; `compatibility.json`, `tools/package.py`, `proof.py` and
   the old Nightly compile job are removed.
 - Porting: codefreak558.
 

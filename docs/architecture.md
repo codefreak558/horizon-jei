@@ -36,11 +36,10 @@ across a host or draw call: a host call can fire another of this mod's hooks (a 
 
 | Hook | What it does |
 |---|---|
-| `register` | the settings (give, hints, bookmarks, sort, language) and the R, U, A key mappings |
+| `register` | the settings (give, bookmarks, sort, language) and the R, U, A key mappings |
 | `client_tick_post` | builds the viewer once a world is open (again after `recipes_received`, or while the game has no recipes yet), runs pending actions, keeps the panel beside the recipe screen |
 | `recipes_received` | the server's recipes arrived: rebuild next tick |
 | `panel_event` | search, list clicks, R/U and A over any stack (`PanelEvent::Key`) |
-| `item_tooltip` | the R/U counts and the bookmark mark |
 | `screen_render_post` | the bookmark bar, and where the screen is for the recipe screen |
 | `gui_render_post` | the recipe screen, over everything else |
 | `screen_mouse_button_pressed_pre` / `_released_pre` / `_dragged_pre` / `_scrolled_pre` | the bar's clicks and drags; the recipe screen's buttons, stacks, "+", pages |
@@ -70,6 +69,26 @@ holds unlocked recipes.
 
 ## Files
 
-`config_files()` serves the mod's own folder in `config/`: `config/jei/jei.cfg` (sort, hints,
+`config_files()` serves the mod's own folder in `config/`: `config/jei/jei.cfg` (sort, hints (kept, unused),
 bookmarks) and `config/jei/bookmarks.txt`. The settings page's values live in
 `horizon-mods/.horizon-mod-data/jei/`. When `jei.cfg` is read, its values are shown on the page.
+
+## Subtypes and brewing (`variants.rs`)
+
+The registries (`minecraft:potion`, `minecraft:instrument`, `enchantments()`) give the variants: a potion
+as each bottle and tipped arrow, each enchantment level as a book, goat horns, ominous bottles. Each one gets
+its stack from `item_from_snbt` and its name from `hover_name`. The viewer and the game's panel both use the
+command form of components (`[minecraft:potion_contents={"potion":"minecraft:swiftness"}]`). The game reads
+it with `command_components`, whatever `Stack::components`' doc says. The game's own SNBT spelling of a
+slot's stack is normalised by `variants::canonical`. Brewing comes from `recipes_of_type("minecraft:brewing")`,
+whose JSON names the bottles, the potions they must hold, the reagent and the result.
+
+## The native route (`horizon-mod.toml`, `src/mixins/`, `src/native_route.rs`)
+
+| Row | Target | Why |
+|---|---|---|
+| `creative_panel` | `native_panel::Game::browser_sync`, `MODIFY_EXPRESSION_VALUE` on `of.0.native_id()` | The game shows a mod's panel on the creative screen only for its own Recipes mod; JEI reads as `recipes` to that check. |
+| `give_components` | `native_recipes::Game::recipe_give`, cancellable `HEAD` | The SDK's `give` takes an item only. Just before it, `glue` leaves the clicked variant's components in `native_route`. The helper takes them and calls the game's `mod_give(item, count, components)`. |
+
+The helpers are compiled into the game, not into this crate, and call it as `::jei::native_route::…`. The
+rows pin the mod to the `[native]` build. Re-read both targets on every Horizon update.
