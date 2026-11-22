@@ -1155,6 +1155,8 @@ pub struct Variant {
     /// The item's index in the viewer's items.
     pub item: u32,
     pub components: String,
+    /// Its own name (`Potion of Swiftness`), which the search reads; "" for the item's.
+    pub name: String,
 }
 
 /// The variants the recipe tables mention: every distinct components string a
@@ -1181,6 +1183,7 @@ pub fn harvest_variants(recipes: &[Recipe], per_item: usize, total: usize) -> Ve
             out.push(Variant {
                 item: stack.item,
                 components: stack.components.clone(),
+                name: String::new(),
             });
             if out.len() >= total {
                 return out;
@@ -1413,7 +1416,7 @@ impl Found<'_> {
 /// interpreters say: a potion's contents, an enchanted book's enchantments, a
 /// goat horn's sound, an ominous bottle's level, a stew's effects. Damage,
 /// names, enchantments on gear and the rest don't: a worn rod is a rod.
-const SUBTYPES: &[&str] = &[
+pub const SUBTYPES: &[&str] = &[
     "potion_contents",
     "stored_enchantments",
     "instrument",
@@ -1638,19 +1641,34 @@ impl Viewer {
         let mut listed: Vec<Entry> = Vec::new();
         let filter = Search::new(&self.search);
         for (index, item) in self.items.iter().enumerate() {
-            if item.id == "minecraft:air" || !filter.keeps(&item.search()) {
+            if item.id == "minecraft:air" {
                 continue;
             }
             if listed.len() >= ITEMS_MAX {
                 break;
             }
-            listed.push(self.entry(index as u32, String::new()));
+            if filter.keeps(&item.search()) {
+                listed.push(self.entry(index as u32, String::new()));
+            }
+            // A variant is found by its own name (a search for "swiftness" lists its potions).
             let variants = self.variants.get(&(index as u32));
             for variant in variants.into_iter().flatten() {
                 if listed.len() >= ITEMS_MAX {
                     break;
                 }
-                listed.push(self.entry(index as u32, variant.components.clone()));
+                let name = if variant.name.is_empty() {
+                    &item.name
+                } else {
+                    &variant.name
+                };
+                let search = SearchItem {
+                    name,
+                    id: &item.id,
+                    tags: &item.tags,
+                };
+                if filter.keeps(&search) {
+                    listed.push(self.entry(index as u32, variant.components.clone()));
+                }
             }
         }
         listed.sort_by(|a, b| a.key.cmp(&b.key));
@@ -1683,6 +1701,11 @@ impl Viewer {
             ),
             Sort::Id => format!("{}\u{0}{components}", item.id),
         }
+    }
+
+    /// The stack the list shows at `index` (a variant with its components); none past its end.
+    pub fn listed_stack(&self, index: usize) -> Option<Stack> {
+        self.listed.get(index).map(|entry| self.stack(entry))
     }
 
     fn stack(&self, entry: &Entry) -> Stack {

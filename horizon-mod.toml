@@ -14,3 +14,55 @@ capabilities = ["registries"]
 game = "26.3"
 horizon = "2b77287de099c9316278ba7ac4d83590fdb7ef30"
 mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
+
+# The native route (docs/port-sdk.md): what the SDK has no API for. Each row pins the mod to the [native]
+# build above.
+
+# The item list on the creative screen: the game shows a native panel there only for Horizon's own Recipes mod.
+[[native.mixin]]
+id = "creative_panel"
+target = "horizon_client::game::native_panel::Game<'_>::browser_sync"
+kind = "MODIFY_EXPRESSION_VALUE"
+selector = "of.0.native_id()"
+require = 1
+ordinal = 0
+helper = "src/mixins/creative_panel.rs"
+bindings = [{ name = "owner", ty = "&str", value = "$value" }]
+
+# Creative give of a variant: the SDK's give takes an item only, so the game's own give is handed the clicked
+# potion's or book's components (src/native_route.rs).
+[[native.mixin]]
+id = "give_components"
+target = "horizon_client::game::native_recipes::Game<'_>::recipe_give"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/give_components.rs"
+bindings = [
+  { name = "game", ty = "&mut Game<'_>", value = "&mut *self" },
+  { name = "item", ty = "&str", value = "item" },
+  { name = "count", ty = "u32", value = "count" },
+]
+
+# JEI's recipe screen replaces the open screen: while it is open, the container screen (inventory, stations,
+# merchant, beacon via draw_inventory; creative via draw_creative) draws only its background and the item list.
+[[native.mixin]]
+id = "recipe_screen_inventory"
+target = "horizon_client::game::inventory_slots::Game<'_>::draw_inventory"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/recipe_screen_inventory.rs"
+bindings = [
+  { name = "game", ty = "&mut Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut HudBatch", value = "&mut *batch" },
+]
+
+[[native.mixin]]
+id = "recipe_screen_creative"
+target = "horizon_client::game::creative_screen::Game<'_>::draw_creative"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/recipe_screen_creative.rs"
+bindings = [
+  { name = "game", ty = "&mut Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut HudBatch", value = "&mut *batch" },
+]

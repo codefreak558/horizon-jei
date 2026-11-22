@@ -7,7 +7,10 @@ pub mod kit_math;
 pub mod runtime;
 
 mod glue;
+#[doc(hidden)]
+pub mod native_route;
 mod settings;
+mod variants;
 mod window;
 
 #[cfg(test)]

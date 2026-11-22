@@ -14,12 +14,11 @@ use mod_api::{
 
 use crate::runtime::{
     self as jei, Bookmarks, Config, Context, Event, Ingredient, Item, Kind, Out, Recipe, Session,
-    Sort, Stack, Toggle, Viewer,
+    Sort, Stack, Toggle, Variant, Viewer,
 };
+use crate::variants;
 use crate::window::{self, Overlay};
 
-/// Variants one item adds to the list (potions, tipped arrows).
-const VARIANTS_PER_ITEM: usize = 8;
 /// Ticks between two reads while the game has no recipes yet (a world still joining).
 const RETRY_TICKS: u32 = 40;
 /// The recipe types read from the game, and the kind each one's recipes are.
@@ -76,6 +75,8 @@ pub(crate) struct Tables {
     /// The game's id of each crafting recipe. The viewer's `book_id` of a crafting recipe is its index here:
     /// the recipe book knows only unlocked recipes, so the book's own id is asked when "+" is pressed.
     recipe_ids: Vec<String>,
+    /// Each variant's stack (an item and its subtype components), made once by `item_from_snbt`.
+    variant_stacks: HashMap<(String, String), ItemStack>,
 }
 
 impl Tables {
@@ -87,8 +88,15 @@ impl Tables {
         self.ids.get(&key).map(String::as_str)
     }
 
-    /// A viewer stack as the game's (components are not carried yet: see docs/port-sdk.md).
+    /// A viewer stack as the game's: a variant's own stack (a potion's colour, a book's enchantment), else the
+    /// item's.
     pub(crate) fn item_stack(&self, stack: &Stack) -> Option<ItemStack> {
+        let key = jei::subtype_key(&stack.components);
+        if !key.is_empty()
+            && let Some(variant) = self.variant_stacks.get(&(stack.item.clone(), key))
+        {
+            return Some(variant.clone());
+        }
         ItemStack::new(self.key(&stack.item)?, stack.count.clamp(1, 99))
     }
 
@@ -96,13 +104,37 @@ impl Tables {
         Some(mod_api::Stack {
             item: self.key(&stack.item)?,
             count: stack.count.max(1),
-            components: String::new(),
+            components: variants::canonical(&stack.components),
         })
     }
 
-    /// The game's stack as the viewer's.
+    /// The game's stack as the viewer's, with its subtype components.
     fn stack_of(&self, stack: &mod_api::Stack) -> Option<Stack> {
-        Some(Stack::item(self.id(stack.item)?))
+        Some(Stack {
+            item: self.id(stack.item)?.to_owned(),
+            count: 1,
+            components: variants::canonical(&stack.components),
+        })
+    }
+
+    /// Makes (once) the stack of variant `item` + `components`; whether the game has it.
+    fn add_variant(
+        &mut self,
+        host: &dyn ClientHost,
+        item: &str,
+        components: &[variants::Component],
+    ) -> bool {
+        let key = (item.to_owned(), variants::command(components));
+        if self.variant_stacks.contains_key(&key) {
+            return true;
+        }
+        match host.item_from_snbt(&variants::snbt(item, components)) {
+            Some(stack) => {
+                self.variant_stacks.insert(key, stack);
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -243,8 +275,8 @@ fn say(host: &mut dyn ClientHost, line: &str) {
 
 // ------------------------------------------------------------------------------------------------- the tables
 
-/// The game's items and recipes, as the viewer's tables.
-fn read_tables(host: &mut dyn ClientHost) -> (Tables, Vec<Item>, Vec<Recipe>) {
+/// The game's items, their variants and recipes, as the viewer's tables.
+fn read_tables(host: &mut dyn ClientHost) -> (Tables, Vec<Item>, Vec<Variant>, Vec<Recipe>) {
     let mut tables = Tables::default();
     let mut items = Vec::new();
     let mut index = HashMap::new();
@@ -263,8 +295,47 @@ fn read_tables(host: &mut dyn ClientHost) -> (Tables, Vec<Item>, Vec<Recipe>) {
             tags: Vec::new(),
         });
     }
+    // The variants the registries name (JEI's subtypes), each a stack the game makes.
+    let entries = |host: &dyn ClientHost, registry: &str| -> Vec<String> {
+        (host.registry_entries(registry).unwrap_or_default().iter())
+            .map(ToString::to_string)
+            .collect()
+    };
+    let potions = entries(host, "minecraft:potion");
+    let instruments = entries(host, "minecraft:instrument");
+    let enchantments: Vec<(String, u32)> = (host.enchantments().into_iter())
+        .map(|e| (e.id, e.max_level))
+        .collect();
+    let has = |id: &str| index.contains_key(id);
+    let mut found = Vec::new();
+    for (item, components) in
+        variants::registry_variants(&has, &potions, &enchantments, &instruments)
+    {
+        if found.len() + items.len() >= jei::ITEMS_MAX {
+            break;
+        }
+        if tables.add_variant(host, &item, &components) {
+            let command = variants::command(&components);
+            let name = (tables.variant_stacks.get(&(item.clone(), command.clone())))
+                .map(|stack| host.hover_name(stack))
+                .unwrap_or_default();
+            found.push(Variant {
+                item: index[&item],
+                components: command,
+                name,
+            });
+        }
+    }
     let mut recipes = Vec::new();
     let mut named = BTreeSet::new();
+    // Brewing: the game's `minecraft:brewing` recipe files.
+    for r in host.recipes_of_type("minecraft:brewing").iter() {
+        if let Some(b) = variants::brew(&r.json)
+            && let Some(recipe) = brewing(host, &b, &index, &mut tables)
+        {
+            recipes.push(recipe);
+        }
+    }
     for kind in RECIPE_TYPES {
         for r in host.recipes_of_type(kind).iter() {
             tags_named(&r.json, &mut named);
@@ -291,7 +362,83 @@ fn read_tables(host: &mut dyn ClientHost) -> (Tables, Vec<Item>, Vec<Recipe>) {
             }
         }
     }
-    (tables, items, recipes)
+    (tables, items, found, recipes)
+}
+
+/// Item ids, a `#tag` expanded to its items.
+fn expand(host: &dyn ClientHost, ids: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    for id in ids {
+        if id.starts_with('#') {
+            let json = mod_api::serde_json::to_string(id).unwrap_or_default();
+            if let Ok(Some(ingredient)) = host.recipe_ingredient(&json) {
+                out.extend(ingredient.order.iter().cloned());
+            }
+        } else {
+            out.push(id.clone());
+        }
+    }
+    out
+}
+
+/// A brewing recipe as the viewer's: the bottles (each potion it takes, in each bottle it takes), the reagent,
+/// and the bottle it makes.
+fn brewing(
+    host: &dyn ClientHost,
+    b: &variants::Brew,
+    index: &HashMap<String, u32>,
+    tables: &mut Tables,
+) -> Option<Recipe> {
+    let mut bottles = Vec::new();
+    for item in expand(host, &b.inputs) {
+        let Some(&n) = index.get(&item) else {
+            continue;
+        };
+        if b.input_potions.is_empty() {
+            bottles.push(Ingredient {
+                item: n,
+                count: 1,
+                components: String::new(),
+            });
+        }
+        for potion in &b.input_potions {
+            let components = variants::potion(potion);
+            if tables.add_variant(host, &item, &components) {
+                bottles.push(Ingredient {
+                    item: n,
+                    count: 1,
+                    components: variants::command(&components),
+                });
+            }
+        }
+    }
+    let reagents: Vec<Ingredient> = (expand(host, &b.reagents).iter())
+        .filter_map(|id| index.get(id))
+        .map(|&item| Ingredient {
+            item,
+            count: 1,
+            components: String::new(),
+        })
+        .collect();
+    let &out = index.get(&b.output)?;
+    if !b.output_components.is_empty() && !tables.add_variant(host, &b.output, &b.output_components)
+    {
+        return None;
+    }
+    (!bottles.is_empty() && !reagents.is_empty()).then(|| Recipe {
+        kind: Kind::Brewing,
+        width: 0,
+        height: 0,
+        slots: vec![bottles, reagents],
+        results: vec![Ingredient {
+            item: out,
+            count: b.output_count.max(1),
+            components: variants::command(&b.output_components),
+        }],
+        cooking_time: 0,
+        experience: 0.0,
+        book_id: -1,
+    })
 }
 
 /// The item tags a recipe's file names (`"#minecraft:logs"`, or `{"tag": "minecraft:logs"}`), as full names.
@@ -479,10 +626,9 @@ pub(crate) fn sync(host: &mut dyn ClientHost) {
         return;
     }
     load(host);
-    let (tables, items, recipes) = read_tables(host);
+    let (tables, items, found, recipes) = read_tables(host);
     let recipes = jei::dedupe_recipes(recipes);
     let none = recipes.is_empty();
-    let found = jei::harvest_variants(&recipes, VARIANTS_PER_ITEM, jei::ITEMS_MAX);
     let lang = lang(host);
     let (mut viewer, mut out) = Viewer::with_variants(items, recipes, found, lang);
     let sort = st().config.sort;
@@ -676,11 +822,26 @@ fn dispatch(host: &mut dyn ClientHost, event: Event) {
         creative: give,
         grid,
     };
+    // The clicked entry's components, for a give of a variant (`native_route::give_components`).
+    let clicked = match &event {
+        Event::Clicked { index, .. } => st().viewer().and_then(|v| v.listed_stack(*index)),
+        _ => None,
+    };
     let mut fallback = false;
     for out in handle(&event, &ctx, lang) {
         if let Out::Give { item, count } = &out {
             let key = st().tables.key(item);
-            if key.is_none_or(|key| host.give(key, *count).is_err()) {
+            let components = (clicked.as_ref())
+                .filter(|s| s.item == *item)
+                .map(|s| s.components.clone())
+                .unwrap_or_default();
+            let given = key.is_some_and(|key| {
+                crate::native_route::offer_give(item, &components);
+                let given = host.give(key, *count).is_ok();
+                crate::native_route::offer_give("", "");
+                given
+            });
+            if !given {
                 fallback = true;
             }
             continue;

@@ -396,8 +396,12 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
     let g = geom(&o, gui);
     let hit = hit(&o, gui, mouse);
     let mut p = Painter { host, draw };
-    // The screen under it dims, as under a vanilla screen opened over another.
-    p.draw.fill(rect, DIM);
+    // The container screen under it is not drawn (the recipe_screen mixins): the window replaces it, over the
+    // vanilla background. Over the world (JEI's own screen) the world dims as under any screen.
+    if o.own_screen {
+        p.draw.fill([0.0, 0.0, gui[0], gui[1]], DIM);
+    }
+    let _ = rect;
     // Tabs, as JEI's: the others behind the window, the selected one over its edge, joined to it.
     for (i, r) in g.tabs.iter().filter(|(i, _)| *i != o.tab) {
         p.tab(&o, *i, *r);
@@ -519,7 +523,7 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
             stack,
             view,
             output,
-        }) => stack_lines(&o, stack, *view, *output),
+        }) => stack_lines(host, &o, stack, *view, *output),
         Some(Hit::Plus(_, on)) => vec![format!("§f{}", lang.transfer_hint(*on))],
         Some(Hit::Tab(i)) => (o.names.get(*i))
             .map(|n| vec![format!("§f{n}")])
@@ -539,12 +543,20 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
 
 /// A stack's tooltip on the recipe screen: its name, and a category output's chance, count and notes.
 fn stack_lines(
+    host: &dyn ClientHost,
     o: &Overlay,
     stack: &Stack,
     view: Option<usize>,
     output: Option<usize>,
 ) -> Vec<String> {
-    let name = st().name(&stack.item);
+    // A variant by its own name (Potion of Swiftness), an item by the viewer's.
+    let variant = (!stack.components.is_empty())
+        .then(|| st().tables.item_stack(stack))
+        .flatten();
+    let name = match variant {
+        Some(item) => host.hover_name(&item),
+        None => st().name(&stack.item),
+    };
     let mut lines = vec![format!("§f{name}")];
     if let (Some(v), Some(i)) = (view, output)
         && let Some(c) = o.views.get(v).and_then(|v| v.chances.get(i))
