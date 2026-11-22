@@ -8,7 +8,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::{LazyLock, Mutex, MutexGuard};
 
 use mod_api::{ClientHost, ConfigPath, ItemKey, ItemStack, PanelEvent, PanelStyle, ScreenView, Text};
-use serde_json::Value;
+use mod_api::serde_json::Value;
 
 use crate::runtime::{
     self as jei, Bookmarks, Config, Context, Counts, Event, Ingredient, Item, Kind, Out, Recipe,
@@ -62,6 +62,8 @@ pub(crate) struct State {
     pub(crate) gui: [f32; 2],
     /// The panel's window width now (`PanelStyle::Classic`), to set it only when it changes.
     panel_window: Option<u16>,
+    /// Why the last write of a file failed, for `/jei config`.
+    write_error: Option<String>,
 }
 
 /// How the viewer's item ids map to the game's keys.
@@ -127,6 +129,7 @@ impl State {
             overlay_pressed: false,
             gui: [0.0, 0.0],
             panel_window: None,
+            write_error: None,
         }
     }
 
@@ -179,10 +182,11 @@ fn read(host: &dyn ClientHost, path: Option<ConfigPath>) -> Option<String> {
 }
 
 fn write(host: &dyn ClientHost, path: Option<ConfigPath>, text: &str) {
-    if let Some(path) = path
-        && let Err(e) = host.config_files().write(&path, text.as_bytes())
-    {
-        log::warn!("JEI: could not write {path:?}: {e:?}");
+    if let Some(path) = path {
+        let error = (host.config_files().write(&path, text.as_bytes()))
+            .err()
+            .map(|e| format!("could not write {path:?}: {e:?}"));
+        st().write_error = error;
     }
 }
 
@@ -220,10 +224,14 @@ fn save_bookmarks(host: &dyn ClientHost, bookmarks: &Bookmarks) {
 
 /// Where the config and the bookmarks live, for `/jei config`.
 pub(crate) fn files() -> String {
-    format!(
+    let files = format!(
         "JEI files: config/{0}/jei.cfg and config/{0}/bookmarks.txt",
         jei::ID
-    )
+    );
+    match st().write_error.clone() {
+        Some(error) => format!("{files} (last write failed: {error})"),
+        None => files,
+    }
 }
 
 /// The player's language (the settings page's choice).
@@ -275,7 +283,7 @@ fn read_tables(host: &mut dyn ClientHost) -> (Tables, Vec<Item>, Vec<Recipe>) {
     }
     // A tag's items, as an ingredient naming it reads them: what `#logs` searches.
     for tag in named {
-        let Ok(json) = serde_json::to_string(&format!("#{tag}")) else {
+        let Ok(json) = mod_api::serde_json::to_string(&format!("#{tag}")) else {
             continue;
         };
         let Ok(Some(ingredient)) = host.recipe_ingredient(&json) else {
@@ -1180,7 +1188,7 @@ mod tests {
 
     #[test]
     fn tags_are_read_from_a_recipe_file() {
-        let json: Value = serde_json::from_str(
+        let json: Value = mod_api::serde_json::from_str(
             r##"{"pattern": ["#"], "key": {"#": "#logs", "X": {"tag": "wool"}},
                 "result": {"id": "minecraft:stick", "components": {"x": "#nope"}}}"##,
         )

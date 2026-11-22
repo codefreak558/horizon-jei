@@ -1,7 +1,7 @@
 // The sources' arithmetic: loot table number providers, world generation heights and chances, and how the pages
 // write numbers. Nothing here touches the game, so the JEI fork's unit tests compile this file on its own.
 
-use serde_json::Value;
+use mod_api::serde_json::Value;
 
 /// A number provider's middle, or a plain number.
 pub fn average(v: &Value) -> f64 {

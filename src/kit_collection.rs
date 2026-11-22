@@ -4,7 +4,7 @@
 // (docs/port-sdk.md), so only this evaluator is ported; nothing in the MVP calls it yet.
 
 use crate::kit_math::{average, range};
-use serde_json::Value;
+use mod_api::serde_json::Value;
 
 /// The tool a source is read for.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -239,7 +239,7 @@ pub fn count_of(v: &Value, got: &mut Got) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    use mod_api::serde_json::json;
 
     #[test]
     fn chances_and_tools() {

@@ -1,7 +1,7 @@
 // Unit tests for the kit's arithmetic (src/kit_math.rs): number providers, heights, chances.
 
 use crate::kit_math::*;
-use serde_json::json;
+use mod_api::serde_json::json;
 
 const OVERWORLD: (i32, i32) = (-64, 384);
 
