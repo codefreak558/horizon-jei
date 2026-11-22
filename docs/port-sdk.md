@@ -193,4 +193,4 @@ Built and checked in game on launcher 0.2.102 / Horizon `2b77287` (instance "JEI
 - `Cargo.lock` must keep the game's pins (`game or pinned package proc-macro2 moved…`).
   `horizon-launcher native-lock` resolves the newest versions, so it is wrong for a mod with no
   registry dependencies of its own. Seed the lock from `.horizon/sdk/api/Cargo.lock` instead.
-- The manifest `id` must match `[a-z0-9_]{1,64}`, so the planned `jei-new` became `jei_new`.
+- The manifest `id` must match `[a-z0-9_]{1,64}` (a planned `jei-new` would be refused). The mod keeps `jei`.

@@ -1,4 +1,4 @@
-//! The mod's page in Options > Mods, and `/jei`. The page's toggles mirror `config/jei_new/jei.cfg`: a change
+//! The mod's page in Options > Mods, and `/jei`. The page's toggles mirror `config/jei/jei.cfg`: a change
 //! on the page is written to the file, and the file's values are shown on the page when it is read.
 use mod_api::{ClientHost, Command, SettingSpec, Text};
 
@@ -8,22 +8,21 @@ use crate::runtime::{self as jei, Config, Sort};
 /// The settings on JEI's page in Options > Mods.
 pub fn settings() -> [SettingSpec; 5] {
     [
-        SettingSpec::toggle("give", "jei_new.setting.give", false)
-            .tooltip("jei_new.setting.give.tooltip"),
-        SettingSpec::toggle("hints", "jei_new.setting.hints", true)
-            .tooltip("jei_new.setting.hints.tooltip"),
-        SettingSpec::toggle("bookmarks", "jei_new.setting.bookmarks", true)
-            .tooltip("jei_new.setting.bookmarks.tooltip"),
+        SettingSpec::toggle("give", "jei.setting.give", false).tooltip("jei.setting.give.tooltip"),
+        SettingSpec::toggle("hints", "jei.setting.hints", true)
+            .tooltip("jei.setting.hints.tooltip"),
+        SettingSpec::toggle("bookmarks", "jei.setting.bookmarks", true)
+            .tooltip("jei.setting.bookmarks.tooltip"),
         SettingSpec::choice(
             "sort",
-            "jei_new.setting.sort",
-            ["jei_new.setting.sort.name", "jei_new.setting.sort.id"],
+            "jei.setting.sort",
+            ["jei.setting.sort.name", "jei.setting.sort.id"],
             0,
         ),
         SettingSpec::choice(
             "language",
-            "jei_new.setting.language",
-            ["jei_new.setting.language.en", "jei_new.setting.language.es"],
+            "jei.setting.language",
+            ["jei.setting.language.en", "jei.setting.language.es"],
             0,
         ),
     ]

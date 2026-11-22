@@ -33,7 +33,7 @@ const TEXT: u32 = 0xFF_40_40_40;
 const DIM: u32 = 0xA0_10_10_10;
 /// JEI's GUI sprites (1.12's, MIT), in this mod's assets; when they don't load the screen draws the same shapes
 /// with fills.
-const SPRITES: &str = "jei_new:gui/sprites/";
+const SPRITES: &str = "jei:gui/sprites/";
 
 /// The recipe screen's parts now, from the GUI's size.
 fn geom(o: &Overlay, gui: [f32; 2]) -> geo::Geom {

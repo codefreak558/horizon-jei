@@ -28,9 +28,9 @@ use mod_api::{
 
 /// The mod's keys: id, label (a translation key) and default (the Java mod's R and U, and A for a bookmark).
 pub const KEY_MAPPINGS: [(&str, &str, &str); 3] = [
-    ("recipe", "jei_new.key.recipe", "key.keyboard.r"),
-    ("uses", "jei_new.key.uses", "key.keyboard.u"),
-    ("bookmark", "jei_new.key.bookmark", BOOKMARK_KEY),
+    ("recipe", "jei.key.recipe", "key.keyboard.r"),
+    ("uses", "jei.key.uses", "key.keyboard.u"),
+    ("bookmark", "jei.key.bookmark", BOOKMARK_KEY),
 ];
 
 fn flow(cancel: bool) -> Flow {

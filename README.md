@@ -5,7 +5,7 @@ reimplementation of Minecraft: Java Edition 26.3. It is a port of
 [JustEnoughItems](https://github.com/mezz/JustEnoughItems) (JEI), built as a
 native mod on Horizon's mod SDK (`horizon-mod-api`).
 
-Status: **0.4.0, the SDK port** (mod id `jei_new`). It is made for the Horizon
+Status: **0.4.0, the SDK port** (mod id `jei`). It is made for the Horizon
 build of Nightly 2026-11-22 (`2b77287`). It replaces the 0.3 mixin bundle,
 which current launchers refuse to load.
 
@@ -23,12 +23,12 @@ which current launchers refuse to load.
 - **Bookmarks**: **A** bookmarks the stack under the pointer. The bar sits at
   the top left of container screens. Left click opens a bookmark's recipes,
   right click its uses, Shift or middle click removes it, and dragging
-  reorders. Kept in `config/jei_new/bookmarks.txt`.
+  reorders. Kept in `config/jei/bookmarks.txt`.
 - **Creative give**: with "Click gives items" on, a click in the list gives one
   and a right click gives a stack.
 - **Settings** in Options → Mods → JEI: give, tooltip hints, the bookmark bar,
   item order and language (English/Spanish). The toggles are mirrored in
-  `config/jei_new/jei.cfg`.
+  `config/jei/jei.cfg`.
 - **Commands**: `/jei`, `/jei give`, `/jei sort name|id`,
   `/jei bookmarks clear`, `/jei config`.
 
@@ -85,7 +85,7 @@ SDK's pins. See [`docs/dev.md`](docs/dev.md).
 ## Layout
 
 ```
-horizon-mod.toml   the manifest: id jei_new, [native] pinned to Horizon 2b77287
+horizon-mod.toml   the manifest: id jei, [native] pinned to Horizon 2b77287
 Cargo.toml         depends only on .horizon/sdk/api/crates/horizon-mod-api
 Cargo.lock         seeded from the SDK's lock (the game's pins)
 src/
@@ -96,7 +96,7 @@ src/
   runtime.rs       the viewer: search, sort, pages, bookmarks, config (pure Rust)
   kit_math.rs      kit arithmetic (pure); kit_collection.rs loot-condition evaluator (pure)
   tests/           daily_use.rs, kit_math.rs (native packages hold Rust only under src/)
-assets/jei_new/    JEI 1.12's GUI sprites (MIT) and the en_us / es_es lang files
+assets/jei/    JEI 1.12's GUI sprites (MIT) and the en_us / es_es lang files
 tools/             fetch-sdk.sh, dev-check.sh
 docs/              port-sdk.md (the SDK map), architecture.md, dev.md, ...
 ```

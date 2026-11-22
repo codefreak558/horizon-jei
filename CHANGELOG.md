@@ -6,9 +6,8 @@
   `crate::game` modules) is gone; current launchers refuse that format. The mod is now one crate
   implementing `mod_api::Hooks`, pinned to Horizon `2b77287` (Nightly 2026-11-22) in
   `horizon-mod.toml`'s `[native]`, built with `horizon-launcher native-build`.
-- **New mod id `jei_new`**, so it can sit beside the old `jei` entry. Its files moved to
-  `config/jei_new/` (`jei.cfg`, `bookmarks.txt`; same formats as before), its sprites to
-  `assets/jei_new/`. The separate content mod `content/jei/` is folded in.
+- The mod id stays `jei`, so 0.3's `config/jei/jei.cfg` and `config/jei/bookmarks.txt` carry over (same
+  formats). The separate content mod `content/jei/` (the GUI sprites) is folded in as `assets/jei/`.
 - Ported: the item list (`panel_items` with JEI's 1.12 `PanelStyle::Classic`), search, R/U, the
   recipe screen, "+" (recipes from the player's recipe book; Shift places as many as fit), creative
   give, tooltip hints, the bookmark bar, the settings page (now `register_setting` rows with

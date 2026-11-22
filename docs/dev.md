@@ -44,4 +44,4 @@ The launcher's MCP server (`horizon-launcher mcp`) starts the game under agent c
 - a click and R/U opening the recipe screen, Escape going back
 - "+" filling the 2x2 grid
 - the A key bookmarking, and the bar surviving a relaunch
-- `/jei sort id` writing `config/jei_new/jei.cfg`
+- `/jei sort id` writing `config/jei/jei.cfg`

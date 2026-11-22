@@ -1,4 +1,4 @@
-id = "jei_new"
+id = "jei"
 name = "JEI for Horizon"
 version = "0.4.0"
 description = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks. A port of Just Enough Items by mezz (MIT)."

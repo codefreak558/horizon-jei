@@ -15,7 +15,7 @@ copyright notice above applies to those parts.
 GUI sprites
 -----------
 
-assets/jei_new/textures/gui/sprites/ holds the GUI sprites of
+assets/jei/textures/gui/sprites/ holds the GUI sprites of
 JustEnoughItems for Minecraft 1.12 (the `1.12` branch at commit
 4f70a47889e97f72d2c344fead75e1065c60e13a, src/main/resources/assets/jei/
 textures/gui/sprites/), unchanged, under JEI's MIT License (copied beside them

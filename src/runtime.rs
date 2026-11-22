@@ -4,7 +4,7 @@
 
 /// The mod's id (horizon-mod.toml): its resource namespace, config folder,
 /// settings and keys.
-pub const ID: &str = "jei_new";
+pub const ID: &str = "jei";
 pub const NAME: &str = "JEI";
 pub const VERSION: &str = "0.4.0";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
@@ -926,7 +926,7 @@ impl Sort {
     }
 }
 
-/// What the mod keeps between sessions, in `config/jei_new/jei.cfg`.
+/// What the mod keeps between sessions, in `config/jei/jei.cfg`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Config {
     pub sort: Sort,

@@ -70,6 +70,6 @@ holds unlocked recipes.
 
 ## Files
 
-`config_files()` serves the mod's own folder in `config/`: `config/jei_new/jei.cfg` (sort, hints,
-bookmarks) and `config/jei_new/bookmarks.txt`. The settings page's values live in
-`horizon-mods/.horizon-mod-data/jei_new/`. When `jei.cfg` is read, its values are shown on the page.
+`config_files()` serves the mod's own folder in `config/`: `config/jei/jei.cfg` (sort, hints,
+bookmarks) and `config/jei/bookmarks.txt`. The settings page's values live in
+`horizon-mods/.horizon-mod-data/jei/`. When `jei.cfg` is read, its values are shown on the page.

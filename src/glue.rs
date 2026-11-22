@@ -172,7 +172,7 @@ pub(crate) fn st() -> MutexGuard<'static, State> {
 
 // ------------------------------------------------------------------------------------------------- files
 
-/// `config/jei_new/jei.cfg` and `config/jei_new/bookmarks.txt`, through the mod's own config files.
+/// `config/jei/jei.cfg` and `config/jei/bookmarks.txt`, through the mod's own config files.
 fn config_path() -> Option<ConfigPath> {
     ConfigPath::new(&format!("{}/jei.cfg", jei::ID)).ok()
 }
@@ -744,24 +744,15 @@ fn apply_or_say(host: &mut dyn ClientHost, out: Out) {
 fn apply(host: &mut dyn ClientHost, out: Out) -> Result<(), String> {
     match out {
         Out::Items(stacks) => {
-            let mut items: Vec<mod_api::Stack> = {
+            let items: Vec<mod_api::Stack> = {
                 let state = st();
                 (stacks.iter())
                     .filter_map(|s| state.tables.panel_stack(s))
                     .take(jei::ITEMS_MAX)
                     .collect()
             };
-            // An empty list keeps one invisible slot: the panel (and its search box) goes away when the list is
-            // empty.
-            if items.is_empty()
-                && let Some(air) = host.item_keys().first().copied()
-            {
-                items.push(mod_api::Stack {
-                    item: air,
-                    count: 0,
-                    components: String::new(),
-                });
-            }
+            // An empty list sent while the game dispatches a search keeps the panel and its search box
+            // (`Panel::show_items`), so a search with no match shows an empty list.
             host.panel_items(jei::ID, items);
             Ok(())
         }
