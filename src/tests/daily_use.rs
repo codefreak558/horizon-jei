@@ -12,7 +12,7 @@
 //! - Cheat/give mode vs survival mode click behaviors.
 //! - Third-party mod category and catalyst integration.
 
-use jei::*;
+use crate::*;
 
 /// Builds a rich and diverse item catalog representing realistic gameplay.
 fn realistic_catalog() -> (Vec<Item>, Vec<Recipe>) {

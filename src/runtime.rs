@@ -1,21 +1,16 @@
-// JEI for Horizon: an item and recipe viewer built on Horizon's native hook
-// points. This file is both the mod's Cargo library (its tests run with
-// `cargo test`) and the module the bundle adds to the game as crate::game::jei.
-//
-// Phase 0: the bundle's skeleton. It registers its row in Options > Mods, a
-// settings page with one toggle, and the /jei command, to prove the wiring
-// before the viewer itself (tasks 1.x and 2.x in tasks/todo.md).
+// JEI for Horizon: the viewer's logic (search, sort, bookmarks, config, the
+// recipe screen's geometry, the language). Nothing here touches the game:
+// src/lib.rs wires it to the mod API, and the tests drive it directly.
 
-/// The mod's id: its row, its settings folder and its keys.
-pub const ID: &str = "jei";
+/// The mod's id (horizon-mod.toml): its resource namespace, config folder,
+/// settings and keys.
+pub const ID: &str = "jei_new";
 pub const NAME: &str = "JEI";
-pub const VERSION: &str = "0.3.0";
+pub const VERSION: &str = "0.4.0";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
 
-/// The hook points' version this build needs: the newest point it hooks
-/// (`native_gui_draw_item_with` and `native_gui_tooltip`, API 411). It builds
-/// on any Horizon at least that new.
-pub const HOOKS: u32 = 411;
+/// The Horizon build the mod is made for (horizon-mod.toml's `[native]`).
+pub const HORIZON: &str = "2b77287de099c9316278ba7ac4d83590fdb7ef30";
 
 /// Its keys: name, label and default (the Java mod's R and U, and A for a
 /// bookmark).
@@ -33,7 +28,7 @@ pub fn title() -> String {
 
 /// The line `/jei` says in chat.
 pub fn about() -> String {
-    format!("{NAME} {VERSION} (alpha) on hook points version {HOOKS}")
+    format!("{NAME} {VERSION} (alpha) on Horizon {}", &HORIZON[..7])
 }
 
 /// The line `/jei` says in a world: what the viewer holds.
@@ -923,7 +918,7 @@ impl Sort {
     }
 }
 
-/// What the mod keeps between sessions, in `config/jei/jei.cfg`.
+/// What the mod keeps between sessions, in `config/jei_new/jei.cfg`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Config {
     pub sort: Sort,
@@ -2345,12 +2340,12 @@ impl Session {
 mod tests {
     #[test]
     fn title_has_name_and_version() {
-        assert_eq!(super::title(), "JEI 0.3.0");
+        assert_eq!(super::title(), "JEI 0.4.0");
     }
 
     #[test]
-    fn about_names_the_hook_points() {
-        assert!(super::about().contains("hook points version 411"));
+    fn about_names_the_horizon_build() {
+        assert!(super::about().contains("on Horizon 2b77287"));
     }
 
     #[test]

@@ -1,0 +1,16 @@
+id = "jei_new"
+name = "JEI for Horizon"
+version = "0.4.0"
+description = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks. A port of Just Enough Items by mezz (MIT)."
+authors = ["enderliker", "J5Casey", "codefreak558"]
+license = "MIT"
+homepage = "https://github.com/codefreak558/horizon-jei"
+api = "0.2"
+side = "client"
+capabilities = ["registries"]
+
+# The exact Horizon build this native mod is made for (Nightly 2026-11-22).
+[native]
+game = "26.3"
+horizon = "2b77287de099c9316278ba7ac4d83590fdb7ef30"
+mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"

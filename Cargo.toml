@@ -1,11 +1,16 @@
 [package]
+# Cargo's name is not the mod's identity (horizon-mod.toml's `id` is); `jei` keeps the library name.
 name = "jei"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
+license = "MIT"
 publish = false
 
-[lib]
-path = "mixins/jei/runtime.rs"
-
-[dev-dependencies]
+[dependencies]
+# The pinned SDK's API crate, fetched into .horizon/sdk/ (see docs/dev.md).
+horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }
 serde_json = "1"
+
+# The SDK build this mod is made for.
+[package.metadata.horizon]
+sdk = "2b77287de099c9316278ba7ac4d83590fdb7ef30"

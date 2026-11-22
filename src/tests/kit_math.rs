@@ -1,21 +1,6 @@
-// Unit tests for the kit's arithmetic (mixins/jei/kit_math.rs). kit_math.rs is written by jei-kit/apply.py and
-// compiles inside the game as crate::game::hz_kit_math_jei; it uses nothing of the game, so here it compiles on its
-// own. In the game its `if_kit_jei_items!` wrapper keeps the newest kit's copy; here there is one copy, so the stand-in
-// below keeps the items.
+// Unit tests for the kit's arithmetic (src/kit_math.rs): number providers, heights, chances.
 
-mod jei_optional {
-    macro_rules! if_kit_jei_items {
-        ($id:literal, { $($items:tt)* }) => { $($items)* };
-    }
-    pub(crate) use if_kit_jei_items;
-}
-
-mod math {
-    use crate::jei_optional;
-    include!("../mixins/jei/kit_math.rs");
-}
-
-use math::*;
+use crate::kit_math::*;
 use serde_json::json;
 
 const OVERWORLD: (i32, i32) = (-64, 384);
