@@ -7,8 +7,10 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{LazyLock, Mutex, MutexGuard};
 
-use mod_api::{ClientHost, ConfigPath, ItemKey, ItemStack, PanelEvent, PanelStyle, ScreenView, Text};
 use mod_api::serde_json::Value;
+use mod_api::{
+    ClientHost, ConfigPath, ItemKey, ItemStack, PanelEvent, PanelStyle, ScreenView, Text,
+};
 
 use crate::runtime::{
     self as jei, Bookmarks, Config, Context, Counts, Event, Ingredient, Item, Kind, Out, Recipe,
@@ -352,7 +354,9 @@ pub fn shaped<T: Clone + Default>(rows: &[&str], filled: &[T]) -> Option<(u32, u
         }
         cells.extend(std::iter::repeat_n(T::default(), width - n));
     }
-    next.next().is_none().then_some((width as u32, rows.len() as u32, cells))
+    next.next()
+        .is_none()
+        .then_some((width as u32, rows.len() as u32, cells))
 }
 
 /// A game recipe as the viewer's; none for one it has no page for (a special crafting recipe, a mod's type)
@@ -391,7 +395,10 @@ fn convert(r: &mod_api::Recipe, index: &HashMap<String, u32>, tables: &Tables) -
     };
     let kind = r.kind.as_str();
     match (kind, &r.rule) {
-        ("minecraft:stonecutting", Some(mod_api::RecipeRule::Stonecutting { input, result: out })) => {
+        (
+            "minecraft:stonecutting",
+            Some(mod_api::RecipeRule::Stonecutting { input, result: out }),
+        ) => {
             recipe.kind = Kind::Stonecutting;
             recipe.slots = vec![alts(input)];
             recipe.results = result(out).into_iter().collect();
@@ -585,10 +592,12 @@ pub(crate) fn panel_event(host: &mut dyn ClientHost, event: &PanelEvent) {
                 index: *index as usize,
                 right: *right,
             }),
-            PanelEvent::Key { key, stack } => state.tables.stack_of(stack).map(|stack| Event::Key {
-                key: key.clone(),
-                stack,
-            }),
+            PanelEvent::Key { key, stack } => {
+                state.tables.stack_of(stack).map(|stack| Event::Key {
+                    key: key.clone(),
+                    stack,
+                })
+            }
             _ => None,
         }
     };
@@ -630,7 +639,10 @@ fn remove_bookmark(host: &dyn ClientHost, index: usize) {
     let bookmarks = {
         let mut state = st();
         state.drag = None;
-        state.bookmarks.remove(index).map(|_| state.bookmarks.clone())
+        state
+            .bookmarks
+            .remove(index)
+            .map(|_| state.bookmarks.clone())
     };
     if let Some(bookmarks) = bookmarks {
         save_bookmarks(host, &bookmarks);
@@ -651,9 +663,9 @@ pub(crate) fn clear_bookmarks(host: &dyn ClientHost) {
 
 /// The crafting grid of the screen drawn last: 0 when none takes recipes.
 fn open_grid() -> u32 {
-    st().screen.as_ref().map_or(0, |(id, menu)| {
-        jei::screen_grid(id, menu.as_deref(), None)
-    })
+    st().screen
+        .as_ref()
+        .map_or(0, |(id, menu)| jei::screen_grid(id, menu.as_deref(), None))
 }
 
 fn dispatch(host: &mut dyn ClientHost, event: Event) {
@@ -804,10 +816,16 @@ fn apply(host: &mut dyn ClientHost, out: Out) -> Result<(), String> {
             Ok(())
         }
         Out::Give { item, count } => {
-            let key = st().tables.key(&item).ok_or_else(|| format!("unknown item {item}"))?;
+            let key = st()
+                .tables
+                .key(&item)
+                .ok_or_else(|| format!("unknown item {item}"))?;
             host.give(key, count)
         }
-        Out::Transfer { book_id: index, all } => {
+        Out::Transfer {
+            book_id: index,
+            all,
+        } => {
             let id = st().tables.recipe_ids.get(index.max(0) as usize).cloned();
             let book = id.and_then(|id| host.recipe_book_ids(&id).first().copied());
             let Some(book) = book else {
@@ -1072,7 +1090,11 @@ fn overlay_pressed(screen: &ScreenView<'_>, button: i32, modifiers: u32) -> bool
 }
 
 /// The wheel over the recipe screen turns its pages.
-pub(crate) fn mouse_scrolled(host: &dyn ClientHost, screen: &ScreenView<'_>, scroll: [f64; 2]) -> bool {
+pub(crate) fn mouse_scrolled(
+    host: &dyn ClientHost,
+    screen: &ScreenView<'_>,
+    scroll: [f64; 2],
+) -> bool {
     if !host.on(jei::ID) || scroll[1] == 0.0 {
         return false;
     }
@@ -1103,7 +1125,10 @@ pub(crate) fn key_pressed(host: &dyn ClientHost, screen: &ScreenView<'_>, key: &
     let hit = {
         let state = st();
         let gui = state.gui;
-        state.overlay.as_ref().map(|o| window::hit(o, gui, screen.mouse))
+        state
+            .overlay
+            .as_ref()
+            .map(|o| window::hit(o, gui, screen.mouse))
     };
     let Some(hit) = hit else {
         return false;
@@ -1165,7 +1190,11 @@ pub(crate) fn tooltip(host: &dyn ClientHost, stack: &ItemStack, lines: &mut Vec<
             return;
         };
         let stack = Stack::item(id);
-        (state.counts(&stack), state.bookmarked(&stack), state.config.hints)
+        (
+            state.counts(&stack),
+            state.bookmarked(&stack),
+            state.config.hints,
+        )
     };
     let counts = if hints { counts } else { Counts::default() };
     let added = jei::tooltip_lines(counts, marked, lang(host));

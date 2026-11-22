@@ -285,7 +285,8 @@ impl Painter<'_> {
             text = format!("{keep}...");
         }
         let w = self.draw.text_width(&text);
-        self.draw.text(&text, [(x - w / 2.0).round(), y], argb, false);
+        self.draw
+            .text(&text, [(x - w / 2.0).round(), y], argb, false);
     }
 
     fn tab(&mut self, o: &Overlay, i: usize, rect: [f32; 4]) {
@@ -295,7 +296,11 @@ impl Painter<'_> {
         } else {
             [rect[0], rect[1] + 2.0, rect[2] - 1.0, rect[3] - 2.0]
         };
-        let sprite = if selected { "tab_selected" } else { "tab_unselected" };
+        let sprite = if selected {
+            "tab_selected"
+        } else {
+            "tab_unselected"
+        };
         if self.nine(sprite, r, 4.0) {
             if selected {
                 self.draw
@@ -433,7 +438,12 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
             if let Some([x, y, w, h]) = placed.arrow {
                 let mid = y + h / 2.0;
                 p.draw.fill([x, mid - 2.0, w - 6.0, 4.0], 0xFF_8B_8B_8B);
-                let tip = [[x + w - 7.0, y], [x + w, mid], [x + w, mid], [x + w - 7.0, y + h]];
+                let tip = [
+                    [x + w - 7.0, y],
+                    [x + w, mid],
+                    [x + w, mid],
+                    [x + w - 7.0, y + h],
+                ];
                 p.draw.quad(tip, 0xFF_8B_8B_8B);
             }
             if let (Some(r), Some(on)) = (placed.button, view.action) {
@@ -463,7 +473,10 @@ pub(crate) fn gui_render_post(host: &dyn ClientHost, draw: &mut dyn DrawContext)
     };
     if !lines.is_empty() {
         let texts: Vec<Text> = (lines.iter())
-            .map(|l| host.text_from_legacy(l).unwrap_or_else(|_| Text::literal(l.as_str())))
+            .map(|l| {
+                host.text_from_legacy(l)
+                    .unwrap_or_else(|_| Text::literal(l.as_str()))
+            })
             .collect();
         let _ = p.draw.gui_tooltip(&texts, mouse);
     }

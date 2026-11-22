@@ -254,8 +254,17 @@ mod tests {
 
     #[test]
     fn set_count_sets_the_range() {
-        let mut got = Got { item: "minecraft:stick".into(), chance: 1.0, low: 1, high: 1, flags: 0 };
-        count_of(&json!({"functions": [{"function": "minecraft:set_count", "count": {"type": "minecraft:uniform", "min": 2, "max": 4}}]}), &mut got);
+        let mut got = Got {
+            item: "minecraft:stick".into(),
+            chance: 1.0,
+            low: 1,
+            high: 1,
+            flags: 0,
+        };
+        count_of(
+            &json!({"functions": [{"function": "minecraft:set_count", "count": {"type": "minecraft:uniform", "min": 2, "max": 4}}]}),
+            &mut got,
+        );
         assert_eq!((got.low, got.high), (2, 4));
     }
 }
