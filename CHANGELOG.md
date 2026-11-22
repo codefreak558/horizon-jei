@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 — 2026-11-22
+
+- **Two columns of recipes.** As JEI's grid: recipes small enough for the window (smelting, stonecutting,
+  smithing, brewing) go two across, in rows spaced evenly down the window; crafting stays one across.
+  Recipe pages count the grid's cells. Categories with chance outputs keep their own layout.
+
 ## 0.5.1 — 2026-11-22
 
 - **The recipe window follows JEI 26.3's geometry.** It is 198 wide and as tall as the screen less 58 (175 to
