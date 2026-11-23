@@ -1,6 +1,6 @@
 name: release
 
-# Builds the mod's package (target/horizon-mod/jei.hmod) with cargo horizon-mod at the pinned Horizon commit,
+# Builds the mod's package (target/horizon-mod/jei.hmod, published as jei-<version>.hmod) with cargo horizon-mod at the pinned Horizon commit,
 # runs the registry's checks on it, and publishes a GitHub release for the tag with the package and its SHA-256.
 # Run it from the Actions tab (Run workflow, on main, tag v0.4.0) or push a v* tag.
 on:
@@ -57,8 +57,10 @@ jobs:
           cargo horizon-mod build
           cargo horizon-mod check target/horizon-mod/jei.hmod
           cd target/horizon-mod
-          sha256sum jei.hmod > jei.hmod.sha256
-          cat jei.hmod.sha256
+          # The version is in the name, so a download says which release it is.
+          mv jei.hmod "jei-${TAG#v}.hmod"
+          sha256sum "jei-${TAG#v}.hmod" > "jei-${TAG#v}.hmod.sha256"
+          cat "jei-${TAG#v}.hmod.sha256"
       - name: release notes from the changelog
         run: |
           version="${TAG#v}"
@@ -71,10 +73,10 @@ jobs:
             echo
             echo "Native mod for Horizon \`2b77287\` (Nightly 2026-11-22), Minecraft 26.3."
             echo "Install: \`horizon-launcher native-build <folder> --trust-native-code\` from a checkout of this tag,"
-            echo "or install the attached \`jei.hmod\`. Native mods are not sandboxed."
+            echo "or install the attached \`jei-${version}.hmod\`. Native mods are not sandboxed."
           } >> notes.md
           cat notes.md
       - name: publish the release
         run: |
-          gh release create "$TAG" target/horizon-mod/jei.hmod target/horizon-mod/jei.hmod.sha256 \
+          gh release create "$TAG" "target/horizon-mod/jei-${TAG#v}.hmod" "target/horizon-mod/jei-${TAG#v}.hmod.sha256" \
             --target "$GITHUB_SHA" --title "JEI for Horizon $TAG" --notes-file notes.md
