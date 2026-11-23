@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 — 2026-11-23
+
+- **A config window in MezzConfig's look.** The wrench button at the screen's bottom right (or `/jei config`)
+  opens JEI's settings as Fabric JEI shows them: a category list, a search box, the rows of a category with
+  their reset buttons, and a description box. Drag its corner to resize it. It is sized in GUI pixels
+  (380 by 300 at first), so it follows the GUI scale and the screen. English only for now.
+
 ## 0.6.2 — 2026-11-23
 
 - **The release package carries its version.** The release attaches `jei-<version>.hmod` and its
