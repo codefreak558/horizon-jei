@@ -141,7 +141,7 @@ pub(crate) fn drag_to(o: &mut Overlay, gui: [f32; 2], mouse: [f32; 2]) -> bool {
             let min = [min_w, geo::MIN_HEIGHT];
             let max = [
                 (gui[0] - 12.0).max(min_w),
-                (gui[1] - 58.0).max(geo::MIN_HEIGHT),
+                (gui[1] - geo::BOTTOM).max(geo::MIN_HEIGHT),
             ];
             let now = geo::resized(size, edge, start, mouse, min, max);
             let changed = now != o.size;

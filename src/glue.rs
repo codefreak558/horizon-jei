@@ -1332,7 +1332,9 @@ pub(crate) fn mouse_scrolled(
         return crate::native_route::panel_scroll(screen.mouse, scroll[1]);
     };
     if window::hit(o, gui, screen.mouse).is_none() {
-        return false;
+        // Beside the window, the wheel turns the item list's pages, as with no recipe open.
+        drop(state);
+        return crate::native_route::panel_scroll(screen.mouse, scroll[1]);
     }
     // A scrolling list moves by pixels, the pages by one.
     if o.scrolling {

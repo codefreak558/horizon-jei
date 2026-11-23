@@ -6,7 +6,7 @@
 /// settings and keys.
 pub const ID: &str = "jei";
 pub const NAME: &str = "JEI";
-pub const VERSION: &str = "0.6.0";
+pub const VERSION: &str = "0.6.1";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
 
 /// The Horizon build the mod is made for (horizon-mod.toml's `[native]`).
@@ -2159,6 +2159,9 @@ pub mod screen {
     pub const MIN_WIDTH: f32 = 198.0;
     pub const MIN_HEIGHT: f32 = 175.0;
     pub const DEFAULT_HEIGHT: f32 = 350.0;
+    /// What the window leaves under it: the panel's search box sits centred below the screen, as JEI's
+    /// does when its search bar is centred (`screenHeight - 76`).
+    pub const BOTTOM: f32 = 76.0;
     /// The scrollbar's width, and what it takes beside the recipes.
     pub const BAR_WIDTH: f32 = 14.0;
     /// How far one wheel notch scrolls.
@@ -2216,7 +2219,7 @@ pub mod screen {
         };
     }
 
-    /// JEI's window: 198 wide, as tall as the screen less 58 (175 to 350), the tabs 21 above it.
+    /// JEI's window: 198 wide, as tall as the screen less 76 (175 to 350), the tabs 21 above it.
     pub fn geom(
         gui: [f32; 2],
         tabs: usize,
@@ -2228,7 +2231,7 @@ pub mod screen {
         let min_w = MIN_WIDTH.min(gui[0] - 12.0).max(120.0);
         let width = pref[0].clamp(min_w, (gui[0] - 12.0).max(min_w));
         let x = ((gui[0] - width) / 2.0).floor();
-        let full = (gui[1] - 58.0).max(MIN_HEIGHT);
+        let full = (gui[1] - BOTTOM).max(MIN_HEIGHT);
         let height = full.min(pref[1].max(MIN_HEIGHT));
         let y = TAB[1] + 21.0 + ((full - height) / 2.0).floor();
         let fit = (((width - 4.0) / TAB[0]).floor() as usize).max(1);
@@ -2766,7 +2769,7 @@ impl Session {
 mod tests {
     #[test]
     fn title_has_name_and_version() {
-        assert_eq!(super::title(), "JEI 0.6.0");
+        assert_eq!(super::title(), "JEI 0.6.1");
     }
 
     #[test]
@@ -3643,14 +3646,14 @@ mod tests {
                 }
             }
         }
-        // JEI's window is as tall as the screen less 58, up to 350.
+        // JEI's window is as tall as the screen less 76, up to 350, never under 175.
         assert_eq!(
             screen::geom([427.0, 680.0], 1, 0, 1, [198.0, 350.0], false).panel[3],
             350.0
         );
         assert_eq!(
             screen::geom([427.0, 240.0], 1, 0, 1, [198.0, 350.0], false).panel[3],
-            182.0
+            175.0
         );
     }
 
