@@ -6,7 +6,7 @@
 /// settings and keys.
 pub const ID: &str = "jei";
 pub const NAME: &str = "JEI";
-pub const VERSION: &str = "0.6.1";
+pub const VERSION: &str = "0.6.2";
 pub const DESCRIPTION: &str = "An item and recipe viewer: every item beside container screens, with search, recipes, uses and bookmarks.";
 
 /// The Horizon build the mod is made for (horizon-mod.toml's `[native]`).
@@ -2769,7 +2769,7 @@ impl Session {
 mod tests {
     #[test]
     fn title_has_name_and_version() {
-        assert_eq!(super::title(), "JEI 0.6.1");
+        assert_eq!(super::title(), "JEI 0.6.2");
     }
 
     #[test]

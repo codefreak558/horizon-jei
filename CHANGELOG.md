@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2 — 2026-11-23
+
+- **The release package carries its version.** The release attaches `jei-<version>.hmod` and its
+  `.sha256`, so a download says which release it is. No change to the mod.
+
 ## 0.6.1 — 2026-11-23
 
 - **The wheel works beside an open recipe.** With the recipe window open, the wheel over the item list
