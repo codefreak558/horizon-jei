@@ -1024,6 +1024,11 @@ fn apply(host: &mut dyn ClientHost, out: Out) -> Result<(), String> {
     }
 }
 
+/// No screen of the game's is open (the last frame had none).
+pub(crate) fn nothing_open() -> bool {
+    st().screen.is_none()
+}
+
 /// Closes the recipe screen (and JEI's own screen under it).
 fn close_overlay(host: &mut dyn ClientHost) {
     let closed = {
@@ -1058,12 +1063,14 @@ pub(crate) fn screen_render_post(
     if !host.on(jei::ID) {
         return;
     }
+    crate::config_ui::seen(screen.mouse, draw.size());
     // The recipe screen itself draws in `gui_render_post`, over this screen and whatever a mod drew on it after
     // us; it needs where this one is.
     st().overlay_at = Some((screen.rect, screen.mouse));
     if !bar_screen(screen) {
         return;
     }
+    crate::config_ui::draw_wrench(draw, screen.mouse);
     load(host);
     let (config, slots, drag) = {
         let state = st();
@@ -1133,7 +1140,13 @@ pub(crate) fn mouse_pressed(
     button: i32,
     modifiers: u32,
 ) -> bool {
-    if !host.on(jei::ID) || !bar_screen(screen) {
+    if !host.on(jei::ID) {
+        return false;
+    }
+    if crate::config_ui::pressed(host, screen.mouse, button, bar_screen(screen)) {
+        return true;
+    }
+    if !bar_screen(screen) {
         return false;
     }
     load(host);
@@ -1167,6 +1180,9 @@ pub(crate) fn mouse_pressed(
 pub(crate) fn mouse_released(host: &dyn ClientHost, screen: &ScreenView<'_>, button: i32) -> bool {
     if !host.on(jei::ID) {
         return false;
+    }
+    if crate::config_ui::released() {
+        return true;
     }
     // Letting go of the window's edge keeps the size it was dragged to.
     let size = {
@@ -1204,6 +1220,9 @@ pub(crate) fn mouse_released(host: &dyn ClientHost, screen: &ScreenView<'_>, but
 pub(crate) fn mouse_dragged(host: &dyn ClientHost, screen: &ScreenView<'_>, button: i32) -> bool {
     if !host.on(jei::ID) {
         return false;
+    }
+    if crate::config_ui::dragged(screen.mouse) {
+        return true;
     }
     {
         // The scrollbar's marker and the window's edge follow the pointer.
@@ -1325,6 +1344,9 @@ pub(crate) fn mouse_scrolled(
     if !host.on(jei::ID) || scroll[1] == 0.0 {
         return false;
     }
+    if crate::config_ui::scrolled(scroll[1]) {
+        return true;
+    }
     let mut state = st();
     let gui = state.gui;
     let Some(o) = state.overlay.as_mut() else {
@@ -1356,6 +1378,9 @@ pub(crate) fn mouse_scrolled(
 pub(crate) fn key_pressed(host: &dyn ClientHost, screen: &ScreenView<'_>, key: &str) -> bool {
     if !host.on(jei::ID) {
         return false;
+    }
+    if crate::config_ui::key(key) {
+        return true;
     }
     let hit = {
         let state = st();
@@ -1397,6 +1422,7 @@ pub(crate) fn screen_closing(host: &dyn ClientHost) {
     if !host.on(jei::ID) {
         return;
     }
+    crate::config_ui::closed();
     let open = {
         let mut state = st();
         match state.overlay.as_mut() {

@@ -7,6 +7,7 @@ pub mod kit_collection;
 pub mod kit_math;
 pub mod runtime;
 
+mod config_ui;
 mod glue;
 #[doc(hidden)]
 pub mod native_route;
@@ -25,7 +26,7 @@ pub use settings::{COMMANDS, settings};
 use mod_api::{
     ClientHost, ClientTickPostEvent, CommandEvent, Flow, GuiRenderPostEvent, Hooks,
     ItemTooltipEvent, KeyRegistration, PanelEventEvent, RecipesReceivedEvent,
-    RegisterClientCommandsEvent, Registrar, RegistrationContext, ScreenClosingEvent,
+    RegisterClientCommandsEvent, Registrar, RegistrationContext, ScreenCharTypedPreEvent, ScreenClosingEvent,
     ScreenKeyPressedPreEvent, ScreenMouseButtonPressedPreEvent, ScreenMouseButtonReleasedPreEvent,
     ScreenMouseDraggedPreEvent, ScreenMouseScrolledPreEvent, ScreenRenderPostEvent,
     SettingChangedEvent,
@@ -74,6 +75,7 @@ impl Hooks for Jei {
     fn client_tick_post(&self, host: &mut dyn ClientHost, _: &mut ClientTickPostEvent) {
         glue::sync(host);
         glue::flush(host);
+        config_ui::tick(host);
     }
 
     fn recipes_received(&self, _: &mut dyn ClientHost, _: &mut RecipesReceivedEvent<'_>) {
@@ -98,6 +100,7 @@ impl Hooks for Jei {
     /// The recipe screen draws after the whole GUI, so a mod's own screen never covers it.
     fn gui_render_post(&self, host: &dyn ClientHost, event: &mut GuiRenderPostEvent<'_>) {
         window::gui_render_post(host, &mut *event.batch);
+        config_ui::draw(host, &mut *event.batch);
     }
 
     fn screen_mouse_button_pressed_pre(
@@ -143,6 +146,15 @@ impl Hooks for Jei {
         event: &mut ScreenKeyPressedPreEvent<'_>,
     ) -> Flow {
         flow(glue::key_pressed(host, event.screen, event.key))
+    }
+
+    /// The config window's search box takes the characters typed while it is open.
+    fn screen_char_typed_pre(
+        &self,
+        host: &dyn ClientHost,
+        event: &mut ScreenCharTypedPreEvent<'_>,
+    ) -> Flow {
+        flow(host.on(ID) && config_ui::char_typed(event.c))
     }
 
     fn screen_closing(&self, host: &dyn ClientHost, _: &mut ScreenClosingEvent<'_>) {

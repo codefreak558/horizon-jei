@@ -127,7 +127,10 @@ pub(crate) fn command(host: &mut dyn ClientHost, line: &str) -> bool {
             glue::clear_bookmarks(host);
             lang.bookmarks_cleared().to_owned()
         }
-        Some(jei::Command::Config) => glue::files(),
+        Some(jei::Command::Config) => {
+            crate::config_ui::request();
+            glue::files()
+        }
         None => jei::COMMAND_USAGE.to_owned(),
     };
     let _ = host.chat_line(Text::literal(text));
